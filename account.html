@@ -1,0 +1,326 @@
+<html><head>
+        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <style>
+        body {
+            background-color: #cccccc;
+            font-family: verdana, tahoma, geneva, sans-serif;
+        }
+
+        p {
+            line-height: 2.0;
+        }
+
+        a {
+        	text-decoration: none
+        }
+
+        a:hover {
+        	text-decoration: underline;
+        }
+
+        div.header {
+            background: #30a080;
+            padding-left: 6px;
+        }
+
+        div.op {
+            background: #f2f2f2;
+            border-radius: 20px;
+            padding: 5px;
+            margin-top: 20px;
+            margin-left: 20px;
+            margin-right: 20px;
+            margin-bottom: 20px;
+        }
+
+        div.padded {
+            padding: 5px;
+        }
+
+        div.hidden {
+            display: none;
+        }
+
+        div.indent {
+            margin-left: 40px;
+        }
+
+        div.scrollbox {
+            height: 200px;
+            overflow-y: scroll;
+        }
+
+        div.bubble {
+            border-radius: 20px;
+            border: 1px solid #808080;
+            background: #ffffff;
+            padding: 7px;
+        }
+
+        img.rounded {
+            border-radius: 7px;
+        }
+    </style>
+    <script type="text/javascript">
+//<globals>//
+let tag_lines = [
+    "The anti-social network.",
+    "Not a field for finding friends.<br>Foes are forged from our furnaces.",
+    "Social media exists to validate your stupid ideas.<br>We exist to crush them.",
+    "Got an opinion you can't back up?<br>Great, keep it to yourself.",
+    "Hate criticism and love validation?<br>Go away. You're not welcome here.",
+    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is for you.",
+    "Come to learn? Fine.<br>Come to teach? Choose your weapon.",
+    "Masochists welcome.",
+    "As the pen is to the sword,<br>so debate is to war.",
+];
+
+function httpPost(url, payload, callback)
+{
+    let request = new XMLHttpRequest();
+    request.onreadystatechange = function()
+    {
+        if(request.readyState == 4)
+        {
+            if(request.status == 200)
+            callback(request.responseText);
+            else
+            {
+                if(request.status == 0 && request.statusText.length == 0)
+                    alert("Connection failed");
+                else
+                    alert("Server returned status " + request.status + ", " + request.statusText);
+            }
+        }
+    };
+    request.open('post', url, true);
+    request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    request.send(payload);
+}
+
+function show_or_hide_logout()
+{
+    let logout_div = document.getElementById('logout_div');
+    let no_pw_warning = document.getElementById('no_pw_warning');
+    if (have_pw) {
+        logout_div.style.display = 'inline-block';
+        no_pw_warning.style.display = 'none';
+    } else {
+        logout_div.style.display = 'none';
+        no_pw_warning.style.display = 'inline-block';
+    }
+}
+
+function outgoing(payload)
+{
+    payload.session_id = session_id;
+    httpPost("account_ajax.html", JSON.stringify(payload), incoming);
+}
+
+function incoming(response)
+{
+    let ob = JSON.parse(response);
+    if (ob.error !== undefined) {
+        alert(`Error: ${ob.error}`);
+        return;
+    }
+    if (ob.have_pw !== undefined) {
+        have_pw = ob.have_pw;
+        show_or_hide_logout();
+    }
+    if (ob.reload === true) {
+        location.reload();
+    }
+}
+
+function logout()
+{
+    outgoing({
+        'act': 'logout',
+    })
+}
+
+function switch_account(account_name)
+{
+    outgoing({
+        'act': 'switch',
+        'name': account_name,
+    })
+}
+
+function get_updates()
+{
+    //outgoing({ act: 'update' });
+}
+
+function init()
+{
+    // Set the tag line
+    let tagline = document.getElementById('tagline');
+    tagline.innerHTML = tag_lines[Math.floor(Math.random() * tag_lines.length)];
+
+    let profile_pic_tag = document.getElementById('profile_pic')
+    profile_pic_tag.src = profile_pic;
+    let username_textbox = document.getElementById('username');
+    username_textbox.value = username;
+
+    show_or_hide_logout();
+
+    // Make the switch accounts div
+    if (account_names.length > 1) {
+        if (account_images.length != account_names.length) {
+            throw 'Expected images and names to have the same length';
+        }
+        let s = [];
+        s.push('<h3>Switch accounts</h3>');
+        s.push('<table>');
+        for (let i = 0; i < account_names.length; i++) {
+            if (account_names[i] == username)
+                continue;
+            s.push('<tr><td>');
+            s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`<img src='${account_images[i]}'>`);
+            s.push('</a></td><td>');
+            s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`${account_names[i]}</a></td></tr>`);
+        }
+        let switch_account_div = document.getElementById('switch_account_div');
+        switch_account_div.innerHTML = s.join('');
+    }
+}
+
+function submit_profile_pic_form()
+{
+    let form = document.getElementById('profile_pic_form');
+    form.submit();
+    let bb = document.getElementById('browse_button');
+    bb.value = null;
+}
+
+function on_click_profile_pic()
+{
+    alert('Press the \'Browse\' button to change your profile picture');
+}
+
+function on_name_change()
+{
+    let b = document.getElementById('submit_name');
+    b.style.display = 'inline-block';
+}
+
+function on_pw_change()
+{
+    let b = document.getElementById('submit_pw');
+    b.style.display = 'inline-block';
+}
+
+function submit_name_change()
+{
+    let un = document.getElementById('username');
+    let newname = un.value;
+    if (newname.length < 2) {
+        alert('Too short');
+        return;
+    }
+    outgoing({
+        'act': 'change_name',
+        'name': newname,
+    });
+    let submit_div = document.getElementById('submit_name');
+    submit_div.style.display = 'none';
+}
+
+function submit_pw_change()
+{
+    let pw1 = document.getElementById('pw1');
+    let pw2 = document.getElementById('pw2');
+    if (pw1.value != pw2.value) {
+        alert('Passwords do not match!');
+        return;
+    }
+    outgoing({
+        'act': 'change_pw',
+        'pw': pw1.value,
+    });
+    let submit_div = document.getElementById('submit_pw');
+    submit_div.style.display = 'none';
+}
+</script>
+
+</head><body>
+<br><br>
+<table bgcolor=#dddddd width=800 align=center><tr><td>
+
+<div class="header">
+    <table><tr>
+        <td width=400>
+            <big><big><big><big>DebateStuff.com</big></big></big></big><br>
+            <div id='tagline'></div>
+        </td>
+        <td>
+            <a href="feed.html">Back to debates</a>
+            &nbsp;&nbsp;&nbsp;
+            <a href="handbook.html">Handbook</a>
+            &nbsp;&nbsp;&nbsp;
+            <a href="account.html">Account</a>
+            <br>
+    </td>
+    </tr></table>
+</div>
+
+<br>
+<table width="100%"><tr><td>
+        <h1>Your account</h1>
+    </td>
+    <td>
+        <div class='hidden' id='logout_div'>
+            <a onclick="logout()" href="javascript:void(0);">Log out</a>
+        </div>
+    </td>
+</tr></table>
+<p>
+    (Note: Do not give us personally identifying information.
+    This is not a bank account. It is just a free web service.)
+</p>
+<br>
+<table><tr><td>Your profile picture: <img id='profile_pic' onclick='on_click_profile_pic()'></td>
+<td valign='bottom'><form enctype="multipart/form-data" method="post" action="receive_image.html" id="profile_pic_form">
+    <br>
+    <input id="browse_button" name="file" type="file" onchange="submit_profile_pic_form()">
+</form></td></tr></table>
+
+<br><br>
+Your user name: <input type='text' id='username' onkeydown='on_name_change()' onpaste='on_name_change()' value='' maxlength='100'>
+<div class='hidden' id='submit_name'> <button type="button" name='Submit' onclick='submit_name_change()'>Submit Change</button></div>
+<br>
+
+<br><br>
+<div id="no_pw_warning" class='hidden'><font color="red">You currently have no password!<br>
+    You will need a password before you can log out,<br>
+    so you can get back in.</font></div>
+<table><tr>
+    <td style="text-align:right">Your password:<br><small><small><br></small></small>Again:</td>
+    <td>
+        <input type='password' id='pw1' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'><br>
+        <input type='password' id='pw2' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'>
+    </td>
+    <td valign='bottom'>
+        <div class='hidden' id='submit_pw'>
+            <button type="button" onclick='submit_pw_change()'>Submit Change</button>
+        </div>
+    </td>
+</tr></table>
+<br>
+<div id="switch_account_div"></div>
+
+
+<br><br><br><br>
+</td></tr></table>
+<br><br><br><br><br><br><br><br>
+
+<script type="text/javascript">
+init();
+//let timer = setInterval(function() { get_updates(); }, 5000);
+</script>
+
+</body></html>
