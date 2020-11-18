@@ -2,7 +2,7 @@
         <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
     <style>
         body {
-            background-color: #cccccc;
+            background-color: #104030;
             font-family: verdana, tahoma, geneva, sans-serif;
             font-size: 24px;
         }
@@ -28,12 +28,12 @@
         }
 
         div.header {
-            background: #30a080;
+            background: #50a090;
             padding-left: 6px;
         }
 
         div.op {
-            background: #f2f2f2;
+            background: #ffffff;
             border-radius: 20px;
             padding: 5px;
             margin-top: 20px;
@@ -59,10 +59,17 @@
             overflow-y: scroll;
         }
 
+        div.rp_color {
+            background: #f0f4f0;
+        }
+
+        div.rate_color {
+            background: #f8f8e0;
+        }
+
         div.bubble {
             border-radius: 20px;
             border: 1px solid #808080;
-            background: #ffffff;
             padding: 7px;
         }
 
@@ -75,14 +82,16 @@
 
         .tool .tooltip {
             visibility: hidden;
-            width: 250px;
-            background-color: #40A050;
-            color: white;
+            width: 350px;
+            background-color: #d0b0a0;
+            color: black;
             text-align: center;
             border-radius: 10px;
+            border: 1px solid #808080;
             padding: 15px 5;
             position: absolute;
             z-index: 1;
+            right: 26%;
         }
 
         .tool:hover .tooltip {
@@ -96,14 +105,12 @@ let op_revs = [];
 
 
 let tag_lines = [
-    "The anti-social network.",
-    "Not a field for finding friends.<br>Foes are forged from our furnaces.",
+    "An anti-social network.<br>Foes are more interesting than friends anyway.",
     "Social media exists to validate your stupid ideas.<br>We exist to crush them.",
     "Got an opinion you can't back up?<br>Great, keep it to yourself.",
     "Hate criticism and love validation?<br>Go away. You're not welcome here.",
-    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is for you.",
-    "Come to learn? Fine.<br>Come to teach? Choose your weapon.",
-    "Masochists welcome.",
+    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is a better place for you.",
+    "We're not here to spread alleged facts.<br>We're here to discuss reasons.",
     "As the pen is to the sword,<br>so debate is to war.",
 ];
 let unbiased_indexes = {};
@@ -665,7 +672,8 @@ function add_rate_and_respond_links(s, entry, allow_reply)
 function add_moderation_div(s, entry)
 {
     s.push(`<div class="hidden" id="m.${entry.id}">`);
-    s.push('<div class="bubble">&nbsp;&nbsp;Do not rate positions or claims. Rate reasons and support presented.<br>');
+    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.<br>&nbsp;&nbsp;Rate reasons and support presented.<br>');
+    s.push('<span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of the reasons that facilitate understanding.</span></span>');
     s.push('<table>');
     for (let row = 0; row < 6; row++) {
         s.push('<tr>');
@@ -781,7 +789,7 @@ function make_rp(newDiv, entry)
         }
     }
     s.push('<td>');
-    s.push('<div class="bubble"><table><tr>');
+    s.push('<div class="bubble rp_color"><table><tr>');
 
     if (open_pod) {
         // Peanut gallery comment
@@ -910,6 +918,7 @@ function incoming(response)
         update_entry(entry);
     }
     rev = ob.rev;
+    op_list = ob.ops;
     op_revs = ob.opr;
     if (ob.updates.length > 0) {
         refresh_comments();

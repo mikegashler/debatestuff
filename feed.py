@@ -211,54 +211,50 @@ def rewrite_pod_history(pod: Node) -> None:
     rewrite_pod_history_recursive(op, pod)
 
 # Produces a response containing updates the client needs for its tree
-def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: session.Account) -> Tuple[int, List[int]]:
+def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: session.Account) -> Tuple[int, List[str], List[int]]:
     path = ob['path']
     rev = ob['rev']
     op_list = ob['ops']
     op_revs = ob['opr']
     assert len(op_revs) == len(op_list)
-    main_ob = id_to_node(path)
+
+    # Find the ancestor category
+    category = id_to_node(path)
+    while category.data['type'] != 'cat':
+        if len(op_list) == 0 and category.data['type'] == 'op':
+            op_list.append(category.id)
+            op_revs.append(0)
+        assert category.parent
+        category = category.parent
 
     # Do base updates (the stack from the root to the path node)
     if rev < 1:
-        stack = main_ob.stack()
+        stack = category.stack()
         for node in stack:
             updates.append(encode_node_for_client(node, account))
         for id in op_list:
             node = id_to_node(id)
             updates.append(encode_node_for_client(node, account))
-        if main_ob.data['type'] == 'cat' and len(main_ob.children) > 0 and main_ob.children[0].data['type'] == 'cat':
-            add_cat_updates(updates, main_ob, account)
+        if category.data['type'] == 'cat' and len(category.children) > 0 and category.children[0].data['type'] == 'cat':
+            add_cat_updates(updates, category, account)
         rev = 1
 
     # Do OP updates
     patience = 100
-    if main_ob.data['type'] == 'cat':
-        if len(main_ob.children) < 1 or main_ob.children[0].data['type'] == 'op':
-            # Showing a leaf category (the most common case), so update each OP
-            for i, op_id in enumerate(op_list):
-                if patience == 0:
-                    break
-                op = id_to_node(op_id)
-                while op_revs[i] < len(op.history):
-                    updates.append(encode_history_entry(op.history[op_revs[i]], account))
-                    op_revs[i] += 1
-                    patience -= 1
-                    if patience == 0:
-                        break
-    else:
-        # Showing some specific post, so only update the OP in which it resides
-        op = main_ob
-        while op.data['type'] != 'op':
-            op = op.parent # type: ignore
-        while rev < len(op.history):
-            if op.history[rev]['id'][:len(path)] == path:
-                updates.append(encode_history_entry(op.history[rev], account))
-                patience -= 1
-            rev += 1
+    if len(category.children) < 1 or category.children[0].data['type'] == 'op':
+        # Showing a leaf category (the most common case), so update each OP
+        for i, op_id in enumerate(op_list):
             if patience == 0:
                 break
-    return rev, op_revs
+            op = id_to_node(op_id)
+            while op_revs[i] < len(op.history):
+                updates.append(encode_history_entry(op.history[op_revs[i]], account))
+                op_revs[i] += 1
+                patience -= 1
+                if patience == 0:
+                    break
+
+    return rev, op_list, op_revs
 
 # Formats a comment for display
 def format_comment(text: str) -> str:
@@ -354,10 +350,11 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             'act': 'alert',
             'msg': str(e),
         })
-    new_rev, new_op_revs = add_updates(updates, incoming_packet, account)
+    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account)
     annotate_updates(updates, account)
     return {
         'rev': new_rev,
+        'ops': new_op_list,
         'opr': new_op_revs,
         'updates': updates,
     }
