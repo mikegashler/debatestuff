@@ -1,4 +1,4 @@
-from typing import Mapping, Dict, Any, List
+from typing import Mapping, Dict, Any, List, Tuple
 import string
 import random
 import rec
@@ -43,6 +43,9 @@ class Account():
         self.comment_count = 0
         self.ratings_count = 0
         self.ratings_history: Dict[str, List[float]] = {}
+        self.notif_in: List[Tuple[str, str, str]] = [] # type, post id, account id
+        self.notif_out: List[Tuple[str, str, str, str]] = [] # type, post id, image, name
+        self.notif_pos = 0
 
     def marshal(self) -> Mapping[str, Any]:
         return {
@@ -53,6 +56,9 @@ class Account():
             'coms': self.comment_count,
             'rats': self.ratings_count,
             'hist': self.ratings_history,
+            'ni': self.notif_in,
+            'no': self.notif_out,
+            'np': self.notif_pos,
         }
 
     @staticmethod
@@ -62,6 +68,9 @@ class Account():
         account.comment_count = ob['coms']
         account.ratings_count = ob['rats']
         account.ratings_history = ob['hist']
+        account.notif_in = ob['ni']
+        account.notif_out = ob['no']
+        account.notif_pos = ob['np']
         return account
 
     def rate(self, item_id: str, ratings: List[float]) -> None:
@@ -84,6 +93,40 @@ class Account():
                 j += 1
         return results
 
+    # Extract a group of notifications that all have the same type and node id
+    def group_notifs(self) -> List[Tuple[str, str, str]]:
+        group: List[Tuple[str, str, str]] = []
+        tail = self.notif_in[len(self.notif_in) - 1]
+        group.append(tail)
+        del self.notif_in[len(self.notif_in) - 1]
+        for i in reversed(range(len(self.notif_in))):
+            notif = self.notif_in[i]
+            if notif[0] == tail[0] and notif[1] == tail[1]:
+                group.append(notif)
+                del self.notif_in[i]
+        return group
+
+    # Consumes self.notif_in. Pushes messages into self.notif_out.
+    def digest_notifications(self) -> None:
+        self.notif_pos = len(self.notif_out)
+        while len(self.notif_in) > 0:
+            while len(self.notif_out) >= 30:
+                del self.notif_out[0]
+                self.notif_pos = max(0, self.notif_pos - 1)
+            group = self.group_notifs()
+            first = group[0]
+            if len(first[2]) > 0:
+                person = find_account_by_id(first[2])
+                name = person.name
+                if len(group) == 2:
+                    person2 = find_account_by_id(group[1][2])
+                    name += f' and {person2.name}'
+                elif len(group) > 2:
+                    name += f' and {len(group) - 1} others'
+                self.notif_out.append((first[0], first[1], person.image, name))
+            else:
+                name = f'{len(group)} {"person" if len(group) == 1 else "people"}'
+                self.notif_out.append((first[0], first[1], 'starter_pics/rate.jpeg', name))
 
 def make_starter_account() -> Account:
     n1 = random.randrange(len(auto_name_1))

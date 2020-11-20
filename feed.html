@@ -42,6 +42,21 @@
             margin-bottom: 20px;
         }
 
+        div.notifs {
+            background: #70c0b0;
+            border-radius: 20px;
+            margin-top: 20px;
+            margin-left: 20px;
+            margin-right: 20px;
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #004000;
+        }
+
+        tr.notif_unread {
+            background-color: #90e0d0;
+        }
+
         div.padded {
             padding: 5px;
         }
@@ -80,6 +95,12 @@
         .tool {
         }
 
+        .tool_anchor {
+            position: relative;
+            width: 0;
+            height: 0;
+        }
+
         .tool .tooltip {
             visibility: hidden;
             width: 350px;
@@ -89,9 +110,10 @@
             border-radius: 10px;
             border: 1px solid #808080;
             padding: 15px 5;
-            position: absolute;
             z-index: 1;
-            right: 26%;
+            position: absolute;
+            left: 30px;
+            top: 0px;
         }
 
         .tool:hover .tooltip {
@@ -105,12 +127,12 @@ let op_revs = [];
 
 
 let tag_lines = [
-    "An anti-social network.<br>Foes are more interesting than friends anyway.",
-    "Social media exists to validate your stupid ideas.<br>We exist to crush them.",
+    "An anti-social network.<br>You learn more from foes than friends.",
+    "Social media exists to<br>validate your stupid ideas.<br>We exist to crush them.",
     "Got an opinion you can't back up?<br>Great, keep it to yourself.",
     "Hate criticism and love validation?<br>Go away. You're not welcome here.",
-    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is a better place for you.",
-    "We're not here to spread alleged facts.<br>We're here to discuss reasons.",
+    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is for you.",
+    "We're not here to spread alleged facts.<br>We discuss reasons.",
     "As the pen is to the sword,<br>so debate is to war.",
 ];
 let unbiased_indexes = {};
@@ -570,16 +592,10 @@ function submitRatings(id)
 
 function rate_one(id, index)
 {
-    let ratings = [];
-    for (i = 0; i < rating_choices.length; i++) {
-        ratings.push(i === index ? 1 : 0);
-    }
-    outgoing({
-        act: 'rate',
-        id: id,
-        ratings: ratings,
-    });
-    closeRatings(id);
+    let cb_id = `m${index}_${id}`;
+    let cb = document.getElementById(cb_id);
+    cb.checked = 1;
+    submitRatings(id);
 }
 
 function closeReply(id)
@@ -610,6 +626,69 @@ function showCreateMenu()
     } else {
         el.style.display = 'none';
     }
+}
+
+function showNotifications()
+{
+    let el = document.getElementById('notifications');
+    if (el.style.display !== 'inline-block') {
+        outgoing({
+            act: 'notifs',
+        });
+        el.style.display = 'inline-block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function closeNotifs()
+{
+    let el = document.getElementById('notifications');
+    el.style.display = 'none';
+}
+
+// pos is the position of notifications already read
+// msgs is a list of all the notifications
+function update_notifications(pos, msgs)
+{
+    let el = document.getElementById('notifications');
+    let s = [];
+    s.push('<div class="notifs">');
+    s.push('<h3>Notifications</h3>');
+    s.push('<table>');
+    if (msgs.length === 0)
+        s.push('(No notifications)');
+    for (let i = msgs.length - 1; i >= 0; i--)
+    {
+        let msg = msgs[i];
+        if (i >= pos)
+            s.push('<tr class="notif_unread">');
+        else
+            s.push('<tr>');
+        s.push('<td>');
+        if (msg.image.length > 0)
+            s.push(`<img class="rounded" src="${msg.image}">`);
+        s.push('</td><td>');
+        s.push(msg.name);
+        if (msg.type === 'rate')
+            s.push(' rated your post, ');
+        else if (msg.type === 'rp')
+            s.push(' replied to your post, ');
+        else if (msg.type === 'op')
+            s.push(' participated in your debate, ');
+        else if (msg.type === 'chal')
+            s.push(' challenged you to debate, ');
+        else if (msg.type === 'acc')
+            s.push(' accepted your debate challenge, ');
+        else
+            console.log(`Error, unrecognized notification ${msg.type}`);
+        s.push(`<a href='?path=${msg.id}'>${msg.summ}</a>`);
+        s.push('</td></tr>');
+    }
+    s.push('</table>');
+    s.push('<br><button type="button" onclick="closeNotifs()">Close</button>');
+    s.push('</div>');
+    el.innerHTML = s.join('');
 }
 
 function closeCreateMenu()
@@ -672,8 +751,8 @@ function add_rate_and_respond_links(s, entry, allow_reply)
 function add_moderation_div(s, entry)
 {
     s.push(`<div class="hidden" id="m.${entry.id}">`);
-    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.<br>&nbsp;&nbsp;Rate reasons and support presented.<br>');
-    s.push('<span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of the reasons that facilitate understanding.</span></span>');
+    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.<br>&nbsp;&nbsp;Rate the reasons presented to support them.<br>');
+    s.push('<span class="tool_anchor"><span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of reasons that can withstand scrutiny.</span></span></span>');
     s.push('<table>');
     for (let row = 0; row < 6; row++) {
         s.push('<tr>');
@@ -685,7 +764,7 @@ function add_moderation_div(s, entry)
             s.push(`<a class="${i < 4 ? "good" : "bad"}" onclick="rate_one('${entry.id}',${i})" href="javascript:void(0);">`);
             s.push(`<b>${rating_choices[i]}</b>`);
             s.push('</a>');
-            s.push(`<span class="tooltip">${rating_descr[i]}</span>`);
+            s.push(`<span class="tool_anchor"><span class="tooltip">${rating_descr[i]}</span></span>`);
             s.push('</span>');
             s.push('</td>');
         }
@@ -840,10 +919,16 @@ function add_node(entry)
         console.log(`Ignoring irrelevant update to ${entry.id}`);
         return;
     }
+
+    // Store ratings for the node
     store_ratings(entry);
 
+    // Fill out the div content
     if (entry.data.type === 'rp') {
         make_rp(newDiv, entry);
+        if (entry.id == path) {
+            newDiv.scrollIntoView();
+        }
     } else if (entry.data.type === 'pod') {
         make_pod(newDiv, entry);
     } else if (entry.data.type === 'op') {
@@ -892,6 +977,14 @@ function update_entry(entry)
         init();
     } else if (entry.act === 'alert') { // Display a message from the server
         alert(entry.msg);
+    } else if (entry.act === 'notifs') { // Notifications
+        update_notifications(entry.pos, entry.msgs);
+    } else if (entry.act === 'nc') {
+        let el = document.getElementById('notif_link');
+        if (entry.val === 0)
+            el.innerHTML = "Notifications";
+        else
+            el.innerHTML = `Notifications(${entry.val})`;
     } else {
         let msg = `unrecognized entry action ${entry.act}`;
         alert(msg);
@@ -983,12 +1076,14 @@ function init()
 
 <div class="header">
     <table><tr>
-        <td width=400>
+        <td width=330>
             <big><big><big><big>DebateStuff.com</big></big></big></big><br>
             <div id='tagline'></div>
         </td>
         <td>
             <a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
+            &nbsp;&nbsp;&nbsp;
+            <a id="notif_link" onclick="showNotifications()" href="javascript:void(0);">Notifications</a>
             &nbsp;&nbsp;&nbsp;
             <a href="handbook.html">Handbook</a>
             &nbsp;&nbsp;&nbsp;
@@ -1007,6 +1102,8 @@ function init()
     </td>
     </tr></table>
 
+    <div id='notifications' class='hidden'>
+    </div>
     <div id='newdebate' class='hidden'>
         <br><br>
         <h3>Whom would you like to debate?</h3>

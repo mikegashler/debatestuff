@@ -256,14 +256,86 @@ def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: s
 
     return rev, op_list, op_revs
 
+tag_whitelist = set([
+    'a',
+    '/a',
+    'b',
+    '/b',
+    'i',
+    '/i',
+    'u',
+    '/u',
+    'img',
+    'table',
+    '/table',
+    'tr',
+    '/tr',
+    'td',
+    '/td',
+    'menu',
+    '/menu',
+    'hr',
+    'ul',
+    '/ul',
+    'ol',
+    '/ol',
+    'li',
+    '/li',
+    'sub',
+    '/sub',
+    'sup',
+    '/sup',
+])
+
+def restore_whitelisted_tags(text: str) -> str:
+    pos = 0
+    while True:
+        print(f'pos={pos}')
+        open_start = text.find('&lt;', pos)
+        print(f'open_start={open_start}')
+        pos = open_start + 1
+        if open_start < 0:
+            print('no more tags')
+            break
+        close_start = text.find('&gt;', open_start + 4)
+        if close_start >= 0:
+            first_space = text.find(' ', open_start + 4)
+            if first_space == -1:
+                first_space = len(text)
+            first_slash = text.find('/', open_start + 5)
+            if first_slash == -1:
+                first_slash = len(text)
+            tag_name = text[open_start+4:min(close_start,first_space,first_slash)]
+            print(f'tag_name={tag_name}')
+            if tag_name in tag_whitelist:
+                print('bef: ' + text)
+                text = text[:open_start] + '<' + text[open_start+4:close_start] + '>' + text[close_start+4:]
+                print('aft: ' + text)
+                pos = max(pos, open_start + 1 + (close_start - open_start - 4) + 1)
+            else:
+                print(f'{tag_name} not in whitelist')
+        else:
+            print('no close')
+    return text
+
 # Formats a comment for display
-def format_comment(text: str) -> str:
+def format_comment(text: str, maxlen: int) -> str:
     # Enforce length limit
-    if len(text) > 2000:
-        text = text[:2000]
+    if len(text) > maxlen:
+        text = text[:maxlen]
+    text = text.replace('&', '&amp;');
+    text = text.replace('>', '&gt;');
+    text = text.replace('<', '&lt;');
     text = text.replace('\n', '<br>')
     text = text.replace('  ', '&nbsp; ')
+    text = restore_whitelisted_tags(text)
     return text
+
+def summarize_post(id: str, n: int) -> str:
+    node = id_to_node(id)
+    text = str(node.data['text'])
+    summary = text[:n] + ('...' if len(text) > n else '')
+    return summary
 
 # Handles POST requests
 def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
@@ -285,6 +357,9 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                 'cc': account.comment_count,
                 'rc': account.ratings_count,
             })
+            text = node.data['text']
+            if node.account is not None and node.account != account:
+                node.account.notif_in.append(('rate', node.id, ''))
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
@@ -294,7 +369,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             #         'msg': 'Sorry, you have rated {account.ratings_count} comments and have posted {account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
             #     })
             # else:
-            text = format_comment(incoming_packet['text'])
+            text = format_comment(incoming_packet['text'], 1000)
             par = id_to_node(incoming_packet['parid'])
             child = Node(par, {'type':'rp', 'text':text}, None, account)
             account.comment_count += 1
@@ -306,10 +381,19 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             })
             summary = text[:50] + '...' if len(text) > 50 else ''
             print(f'Added node {child.id} with text \'{summary}\'')
+            while par.data['type'] == 'rp':
+                if par.account is not None and par.account != account:
+                    par.account.notif_in.append(('rp', par.id, account.id))
+            if par.data['type'] == 'pod':
+                assert par.parent is not None
+                par = par.parent
+                if par.data['type'] == 'op':
+                    assert par.account is not None and par.account != account
+                    par.account.notif_in.append(('op', par.id, account.id))
         elif act == 'newop': # Start a new debate
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
-            text = format_comment(incoming_packet['text'])
+            text = format_comment(incoming_packet['text'], 1500)
             cat = id_to_node(incoming_packet['parid'])
             assert cat.data['type'] == 'cat', 'Not a category'
             assert len(cat.children) == 0 or cat.children[0].data['type'] == 'op', 'Please choose a sub-category for your debate'
@@ -322,6 +406,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     opponent = incoming_packet['name']
                     opponent_account = session.find_account_by_name(opponent)
                     whitelist.append(opponent_account.id)
+                    opponent_account.notif_in.append(('chal', op.id, account.id))
                 Node(op, {'type':'pod', 'text':'One-on-one debate'}, {'whitelist':whitelist}, account)
                 Node(op, {'type':'pod', 'text':'Peanut gallery'}, None, account)
             summary = text[:50] + '...' if len(text) > 50 else ''
@@ -338,11 +423,30 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             if pod.meta is not None and 'whitelist' in pod.meta and len(pod.meta['whitelist']) < 2 and not account.id in pod.meta['whitelist']:
                 pod.meta['whitelist'].append(account.id)
                 rewrite_pod_history(pod)
+                assert pod.parent is not None
+                op = pod.parent
+                opponent_account = session.find_account_by_id(pod.meta['whitelist'][0])
+                opponent_account.notif_in.append(('acc', op.id, account.id))
             else:
                 updates.append({
                     'act': 'alert',
                     'msg': 'Sorry, someone else accepted this challenge first',
                 })
+        elif act == 'notifs': # Get notifications
+            account.digest_notifications()
+            updates.append({
+                'act': 'notifs',
+                'pos': account.notif_pos,
+                'msgs': [
+                    {
+                        'type': m[0],
+                        'id': m[1],
+                        'image': m[2],
+                        'name': m[3],
+                        'summ': summarize_post(m[1], 30),
+                    }
+                    for m in account.notif_out ]
+            })
         else:
             raise RuntimeError('unrecognized action')
     except Exception as e:
@@ -352,6 +456,10 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         })
     new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account)
     annotate_updates(updates, account)
+    updates.append({
+        'act': 'nc', # notification count
+        'val': len(account.notif_in),
+    })
     return {
         'rev': new_rev,
         'ops': new_op_list,
