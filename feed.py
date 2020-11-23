@@ -6,6 +6,8 @@ import session
 import random
 import rec
 import os
+import account
+import traceback
 
 # Load the feed page
 if not os.path.exists('feed.html'):
@@ -17,10 +19,10 @@ with open('feed.html') as f:
 class Node():
     # data is stuff the client will see
     # meta is stuff the client will not see
-    def __init__(self, parent:Optional['Node'], data:Mapping[str, Any], meta:Optional[Mapping[str,Any]], account: Optional[session.Account]) -> None:
+    def __init__(self, parent:Optional['Node'], data:Mapping[str, Any], meta:Optional[Mapping[str,Any]], _account: Optional[account.Account]) -> None:
         self.data = data
         self.meta = meta
-        self.account = account
+        self.account = _account
         self.children: List['Node'] = []
 
         # Insert self into tree
@@ -30,13 +32,13 @@ class Node():
         else:
             # Ensure that we're not screwing up the tree by adding the wrong type of child
             if data['type'] == 'rp':
-                assert parent.data['type'] == 'rp' or parent.data['type'] == 'pod'
+                assert parent.data['type'] == 'rp' or parent.data['type'] == 'pod', 'misplaced node 1'
             elif data['type'] == 'pod':
-                assert parent.data['type'] == 'op'
+                assert parent.data['type'] == 'op', 'misplaced node 2'
             elif data['type'] == 'op':
-                assert parent.data['type'] == 'cat'
+                assert parent.data['type'] == 'cat', 'misplaced node 3'
             elif data['type'] == 'cat':
-                assert parent.data['type'] == 'cat'
+                assert parent.data['type'] == 'cat', 'misplaced node 4'
 
             # Make my ID
             if len(parent.id) == 0:
@@ -56,7 +58,7 @@ class Node():
             op = parent
             while op.data['type'] != 'op':
                 op = op.parent # type: ignore
-            assert op is not None
+            assert op is not None, 'No OP'
             op.history.append({
                 'act': 'add',
                 'node': self,
@@ -79,8 +81,8 @@ class Node():
 
     @staticmethod
     def unmarshal(ob:Mapping[str, Any], parent:Optional['Node']=None) -> 'Node':
-        account = None if ob['ac'] is None else session.find_account_by_id(ob['ac'])
-        node = Node(parent, ob['data'], ob['meta'], account)
+        _account = None if ob['ac'] is None else account.find_account_by_id(ob['ac'])
+        node = Node(parent, ob['data'], ob['meta'], _account)
         assert node.id == ob['id'], 'Something got out of sync'
         for c in ob['ch']:
             Node.unmarshal(c, node)
@@ -100,7 +102,7 @@ class Node():
     def rate(self, ratings: List[float]) -> None:
         if self.ratings is None:
             self.ratings = [ 0 for _ in rec.rating_choices ]
-        assert self.ratings is not None
+        assert self.ratings is not None, 'no ratings'
         for i in range(len(ratings)):
             assert ratings[i] >= 0. and ratings[i] <= 1., 'rating out of range'
             self.ratings[i] += max(0, min(1, int(ratings[i])))
@@ -121,7 +123,7 @@ def id_to_node_recursive(tree: Node, id: str) -> Node:
 def id_to_node(id: str) -> Node:
     return id_to_node_recursive(root, id)
 
-def encode_node_for_client(node: Node, account: session.Account) -> Dict[str, Any]:
+def encode_node_for_client(node: Node, _account: account.Account) -> Dict[str, Any]:
     # Give the node content to the client
     outgoing_packet: Dict[str, Any] = {
         'act': 'add',
@@ -140,8 +142,8 @@ def encode_node_for_client(node: Node, account: session.Account) -> Dict[str, An
         if node.data['type'] == 'pod' and node.meta and 'whitelist' in node.meta:
             if node.account is not None: # to appease mypy
                 whitelist = node.meta['whitelist']
-                assert whitelist
-                if account.id in whitelist: # if the reader is in the whitelist...
+                assert whitelist, 'expected whitelist'
+                if _account.id in whitelist: # if the reader is in the whitelist...
                     pass
                 elif len(whitelist) == 1:
                     outgoing_packet['ro'] = 1 # Allow accepting the debate challenge
@@ -149,16 +151,16 @@ def encode_node_for_client(node: Node, account: session.Account) -> Dict[str, An
                     outgoing_packet['ro'] = 2 # The user may read only
         elif node.parent.data['type'] == 'pod' and node.parent.meta and 'whitelist' in node.parent.meta:
             whitelist = node.parent.meta['whitelist']
-            assert whitelist
-            assert node.account
+            assert whitelist, 'missing whitelist'
+            assert node.account, 'missing account'
             outgoing_packet['ind'] = whitelist.index(node.account.id)
 
     return outgoing_packet
 
 # Encodes a history entry for the client
-def encode_history_entry(entry: Mapping[str, Any], account: session.Account) -> Dict[str, Any]:
+def encode_history_entry(entry: Mapping[str, Any], _account: account.Account) -> Dict[str, Any]:
     if entry['act'] == 'add':
-        return encode_node_for_client(entry['node'], account)
+        return encode_node_for_client(entry['node'], _account)
     else:
         assert False, 'Unrecognized history action'
 
@@ -166,14 +168,39 @@ def encode_history_entry(entry: Mapping[str, Any], account: session.Account) -> 
 def get_unbiased_ratings(item_id: str) -> Tuple[List[float], int]:
     node = id_to_node(item_id)
     if node.rating_count > 0:
-        assert node.ratings
+        assert node.ratings, 'expected ratings'
         mean = [ x / node.rating_count for x in node.ratings ]
     else:
         mean = [ 0. for _ in range(len(rec.rating_choices)) ]
     return mean, node.rating_count
 
+# Finds the index of the strongest rating, and computes an overall score for the item
+def compute_score(ratings: List[float]) -> Tuple[int, float]:
+    assert len(ratings) == len(rec.rating_choices), 'expected a rating for each choice'
+    max_index = 0
+    max_val = -1000000.
+    score = 0.
+    for i in range(len(rec.rating_choices)):
+        score += ratings[i] * rec.rating_choices[i][0]
+        if ratings[i] > max_val:
+            max_val = ratings[i]
+            max_index = i
+    return max_index, score
+
+# Returns unbiased index, biased index, unbiased score, and biased score for a particular node and user.
+def compute_scores(item_ratings_count: int, unbiased_ratings: List[float], biased_ratings: List[float]) -> Tuple[int, int, float, float]:
+    if item_ratings_count < 1:
+        return 0, 0, 1000., 1000. # This item has never been rated
+    max_unbiased_index, unbiased_score = compute_score(unbiased_ratings)
+    if len(biased_ratings) == 0:
+        max_biased_index = 0
+        biased_score = 1000.
+    else:
+        max_biased_index, biased_score = compute_score(biased_ratings)
+    return max_unbiased_index, max_biased_index, unbiased_score, biased_score
+
 # Attaches rating statistics to the updates
-def annotate_updates(updates: List[Dict[str, Any]], account: session.Account) -> None:
+def annotate_updates(updates: List[Dict[str, Any]], _account: account.Account) -> None:
     item_ids = [ up['id'] for up in updates if (up['act'] == 'add' or up['act'] == 'rate') ]
     if len(item_ids) == 0:
         return
@@ -183,18 +210,18 @@ def annotate_updates(updates: List[Dict[str, Any]], account: session.Account) ->
         ur, count = get_unbiased_ratings(item_id)
         unbiased_ratings.append(ur)
         ratings_counts.append(count)
-    biased_ratings = account.get_biased_ratings(item_ids)
+    biased_ratings = _account.get_biased_ratings(item_ids)
     new_item_threshold = 3 # Number of ratings before an item is no longer considered "new"
     for up, c, ur, br in zip(updates, ratings_counts, unbiased_ratings, biased_ratings):
         # Compute unbiased index, biased index, unbiased score, and biased score for this update and user
-        up['ui'], up['bi'], up['us'], up['bs'] = rec.compute_scores(c, ur, br)
+        up['ui'], up['bi'], up['us'], up['bs'] = compute_scores(c, ur, br)
 
 # Recursively adds a whole branch of categories to the updates
-def add_cat_updates(updates: List[Dict[str, Any]], node: Node, account: session.Account) -> None:
+def add_cat_updates(updates: List[Dict[str, Any]], node: Node, _account: account.Account) -> None:
     for c in node.children:
         if c.data['type'] == 'cat':
-            updates.append(encode_node_for_client(c, account))
-            add_cat_updates(updates, c, account)
+            updates.append(encode_node_for_client(c, _account))
+            add_cat_updates(updates, c, _account)
 
 def rewrite_pod_history_recursive(op: Node, node: Node) -> None:
     op.history.append({
@@ -211,7 +238,7 @@ def rewrite_pod_history(pod: Node) -> None:
     rewrite_pod_history_recursive(op, pod)
 
 # Produces a response containing updates the client needs for its tree
-def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: session.Account) -> Tuple[int, List[str], List[int]]:
+def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], _account: account.Account) -> Tuple[int, List[str], List[int]]:
     path = ob['path']
     rev = ob['rev']
     op_list = ob['ops']
@@ -231,12 +258,12 @@ def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: s
     if rev < 1:
         stack = category.stack()
         for node in stack:
-            updates.append(encode_node_for_client(node, account))
+            updates.append(encode_node_for_client(node, _account))
         for id in op_list:
             node = id_to_node(id)
-            updates.append(encode_node_for_client(node, account))
+            updates.append(encode_node_for_client(node, _account))
         if category.data['type'] == 'cat' and len(category.children) > 0 and category.children[0].data['type'] == 'cat':
-            add_cat_updates(updates, category, account)
+            add_cat_updates(updates, category, _account)
         rev = 1
 
     # Do OP updates
@@ -248,7 +275,7 @@ def add_updates(updates: List[Dict[str, Any]], ob: Mapping[str, Any], account: s
                 break
             op = id_to_node(op_id)
             while op_revs[i] < len(op.history):
-                updates.append(encode_history_entry(op.history[op_revs[i]], account))
+                updates.append(encode_history_entry(op.history[op_revs[i]], _account))
                 op_revs[i] += 1
                 patience -= 1
                 if patience == 0:
@@ -290,12 +317,9 @@ tag_whitelist = set([
 def restore_whitelisted_tags(text: str) -> str:
     pos = 0
     while True:
-        print(f'pos={pos}')
         open_start = text.find('&lt;', pos)
-        print(f'open_start={open_start}')
         pos = open_start + 1
         if open_start < 0:
-            print('no more tags')
             break
         close_start = text.find('&gt;', open_start + 4)
         if close_start >= 0:
@@ -306,16 +330,9 @@ def restore_whitelisted_tags(text: str) -> str:
             if first_slash == -1:
                 first_slash = len(text)
             tag_name = text[open_start+4:min(close_start,first_space,first_slash)]
-            print(f'tag_name={tag_name}')
             if tag_name in tag_whitelist:
-                print('bef: ' + text)
                 text = text[:open_start] + '<' + text[open_start+4:close_start] + '>' + text[close_start+4:]
-                print('aft: ' + text)
                 pos = max(pos, open_start + 1 + (close_start - open_start - 4) + 1)
-            else:
-                print(f'{tag_name} not in whitelist')
-        else:
-            print('no close')
     return text
 
 # Formats a comment for display
@@ -343,53 +360,54 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
     try:
         if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
             raise ValueError('malformed request')
-        account = session.get_session(session_id).active_account
+        _account = session.get_session(session_id).active_account
         act = incoming_packet['act']
         if act == 'update': # Just get updates
             pass
         elif act == 'rate': # Rate a comment
             node = id_to_node(incoming_packet['id'])
             node.rate(incoming_packet['ratings']) # unbiased
-            account.rate(incoming_packet['id'], incoming_packet['ratings']) # biased
+            _account.rate(incoming_packet['id'], incoming_packet['ratings']) # biased
             updates.append({
                 'act': 'rate',
                 'id': incoming_packet['id'],
-                'cc': account.comment_count,
-                'rc': account.ratings_count,
+                'cc': _account.comment_count,
+                'rc': _account.ratings_count,
             })
             text = node.data['text']
-            if node.account is not None and node.account != account:
+            if node.account is not None and node.account != _account:
                 node.account.notif_in.append(('rate', node.id, ''))
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
-            # if account.comment_count * 2 >= account.ratings_count:
+            # if _account.comment_count * 2 >= _account.ratings_count:
             #     updates.append({
             #         'act': 'alert',
-            #         'msg': 'Sorry, you have rated {account.ratings_count} comments and have posted {account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
+            #         'msg': 'Sorry, you have rated {_account.ratings_count} comments and have posted {_account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
             #     })
             # else:
             text = format_comment(incoming_packet['text'], 1000)
             par = id_to_node(incoming_packet['parid'])
-            child = Node(par, {'type':'rp', 'text':text}, None, account)
-            account.comment_count += 1
+            child = Node(par, {'type':'rp', 'text':text}, None, _account)
+            _account.comment_count += 1
             updates.append({
                 'act': 'focus',
                 'id': child.id,
-                'cc': account.comment_count,
-                'rc': account.ratings_count,
+                'cc': _account.comment_count,
+                'rc': _account.ratings_count,
             })
             summary = text[:50] + '...' if len(text) > 50 else ''
             print(f'Added node {child.id} with text \'{summary}\'')
             while par.data['type'] == 'rp':
-                if par.account is not None and par.account != account:
-                    par.account.notif_in.append(('rp', par.id, account.id))
+                if par.account is not None and par.account != _account:
+                    par.account.notif_in.append(('rp', par.id, _account.id))
             if par.data['type'] == 'pod':
                 assert par.parent is not None
                 par = par.parent
                 if par.data['type'] == 'op':
-                    assert par.account is not None and par.account != account
-                    par.account.notif_in.append(('op', par.id, account.id))
+                    assert par.account is not None
+                    if par.account != _account:
+                        par.account.notif_in.append(('op', par.id, _account.id))
         elif act == 'newop': # Start a new debate
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
@@ -397,18 +415,18 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             cat = id_to_node(incoming_packet['parid'])
             assert cat.data['type'] == 'cat', 'Not a category'
             assert len(cat.children) == 0 or cat.children[0].data['type'] == 'op', 'Please choose a sub-category for your debate'
-            op = Node(cat, {'type':'op', 'text':text}, None, account)
+            op = Node(cat, {'type':'op', 'text':text}, None, _account)
             if incoming_packet['mode'] == 'open':
-                Node(op, {'type':'pod', 'text':'Open discussion'}, None, account)
+                Node(op, {'type':'pod', 'text':'Open discussion'}, None, _account)
             else:
-                whitelist: List[str] = [account.id]
+                whitelist: List[str] = [_account.id]
                 if incoming_packet['mode'] == 'name':
                     opponent = incoming_packet['name']
-                    opponent_account = session.find_account_by_name(opponent)
+                    opponent_account = account.find_account_by_name(opponent)
                     whitelist.append(opponent_account.id)
-                    opponent_account.notif_in.append(('chal', op.id, account.id))
-                Node(op, {'type':'pod', 'text':'One-on-one debate'}, {'whitelist':whitelist}, account)
-                Node(op, {'type':'pod', 'text':'Peanut gallery'}, None, account)
+                    opponent_account.notif_in.append(('chal', op.id, _account.id))
+                Node(op, {'type':'pod', 'text':'One-on-one debate'}, {'whitelist':whitelist}, _account)
+                Node(op, {'type':'pod', 'text':'Peanut gallery'}, None, _account)
             summary = text[:50] + '...' if len(text) > 50 else ''
             updates.append({
                 'act': 'pushop',
@@ -416,27 +434,27 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             })
             print(f'Added op {op.id} with text \'{summary}\'')
         elif act == 'accept': # Accept a debate challenge
-            print(f'{account.name} accepted a debate challenge')
+            print(f'{_account.name} accepted a debate challenge')
             pod_id = incoming_packet['id']
             pod = id_to_node(pod_id)
             assert pod.data['type'] == 'pod', 'not a pod'
-            if pod.meta is not None and 'whitelist' in pod.meta and len(pod.meta['whitelist']) < 2 and not account.id in pod.meta['whitelist']:
-                pod.meta['whitelist'].append(account.id)
+            if pod.meta is not None and 'whitelist' in pod.meta and len(pod.meta['whitelist']) < 2 and not _account.id in pod.meta['whitelist']:
+                pod.meta['whitelist'].append(_account.id)
                 rewrite_pod_history(pod)
                 assert pod.parent is not None
                 op = pod.parent
-                opponent_account = session.find_account_by_id(pod.meta['whitelist'][0])
-                opponent_account.notif_in.append(('acc', op.id, account.id))
+                opponent_account = account.find_account_by_id(pod.meta['whitelist'][0])
+                opponent_account.notif_in.append(('acc', op.id, _account.id))
             else:
                 updates.append({
                     'act': 'alert',
                     'msg': 'Sorry, someone else accepted this challenge first',
                 })
         elif act == 'notifs': # Get notifications
-            account.digest_notifications()
+            _account.digest_notifications()
             updates.append({
                 'act': 'notifs',
-                'pos': account.notif_pos,
+                'pos': _account.notif_pos,
                 'msgs': [
                     {
                         'type': m[0],
@@ -445,20 +463,21 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                         'name': m[3],
                         'summ': summarize_post(m[1], 30),
                     }
-                    for m in account.notif_out ]
+                    for m in _account.notif_out ]
             })
         else:
             raise RuntimeError('unrecognized action')
     except Exception as e:
+        traceback.print_exc()
         updates.append({
             'act': 'alert',
-            'msg': str(e),
+            'msg': repr(e),
         })
-    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account)
-    annotate_updates(updates, account)
+    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, _account)
+    annotate_updates(updates, _account)
     updates.append({
         'act': 'nc', # notification count
-        'val': len(account.notif_in),
+        'val': len(_account.notif_in),
     })
     return {
         'rev': new_rev,
@@ -478,15 +497,15 @@ def pick_ops(path: str) -> List[str]:
     return op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:
-    account = session.get_session(session_id).active_account
+    _account = session.get_session(session_id).active_account
     path = query['path'] if 'path' in query else ''
     op_list = pick_ops(path)
     globals = [
         'let session_id = \'', session_id, '\';\n',
         'let path = "', path, '";\n',
         'let op_list = ', str(op_list), ';\n',
-        'let comment_count = ', str(account.comment_count), ';\n',
-        'let rating_count = ', str(account.ratings_count), ';\n',
+        'let comment_count = ', str(_account.comment_count), ';\n',
+        'let rating_count = ', str(_account.ratings_count), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
     ]
