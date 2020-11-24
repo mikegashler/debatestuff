@@ -1,17 +1,14 @@
-from typing import List, Mapping, Dict, Any, cast, Tuple, Optional
+from typing import List, Mapping, Dict, Any, cast, Tuple, Optional, Set
 import webserver
 import urllib.parse
 import json
 import session
 import random
 import rec
-import os
 import account
 import traceback
 
 # Load the feed page
-if not os.path.exists('feed.html'):
-    os.chdir('/home/mike/bin/debate/')
 with open('feed.html') as f:
     lines = f.readlines()
     feed_page = ''.join(lines)
@@ -31,6 +28,8 @@ class Node():
             self.parent = None
         else:
             # Ensure that we're not screwing up the tree by adding the wrong type of child
+            assert len(parent.id) < 100, 'Tree depth is out of control!'
+            assert len(parent.children) < 1000, 'Tree breadth is out of control!'
             if data['type'] == 'rp':
                 assert parent.data['type'] == 'rp' or parent.data['type'] == 'pod', 'misplaced node 1'
             elif data['type'] == 'pod':
@@ -372,11 +371,11 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                 'act': 'rate',
                 'id': incoming_packet['id'],
                 'cc': _account.comment_count,
-                'rc': _account.ratings_count,
+                'rc': len(_account.ratings),
             })
             text = node.data['text']
             if node.account is not None and node.account != _account:
-                node.account.notif_in.append(('rate', node.id, ''))
+                node.account.notify('rate', node.id, '')
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
@@ -394,20 +393,29 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                 'act': 'focus',
                 'id': child.id,
                 'cc': _account.comment_count,
-                'rc': _account.ratings_count,
+                'rc': len(_account.ratings),
             })
             summary = text[:50] + '...' if len(text) > 50 else ''
             print(f'Added node {child.id} with text \'{summary}\'')
-            while par.data['type'] == 'rp':
-                if par.account is not None and par.account != _account:
-                    par.account.notif_in.append(('rp', par.id, _account.id))
-            if par.data['type'] == 'pod':
-                assert par.parent is not None
-                par = par.parent
-                if par.data['type'] == 'op':
-                    assert par.account is not None
-                    if par.account != _account:
-                        par.account.notif_in.append(('op', par.id, _account.id))
+
+            # Notify the owners of all ancestor nodes about this comment
+            ancestor = par
+            visited: Set[str] = set()
+            while ancestor.data['type'] == 'rp':
+                if ancestor.account is not None and ancestor.account != _account and not ancestor.id in visited:
+                    visited.add(ancestor.id)
+                    ancestor.account.notify('rp', ancestor.id, _account.id)
+                if ancestor.parent is None:
+                    break
+                else:
+                    ancestor = ancestor.parent
+            if ancestor.data['type'] == 'pod':
+                assert ancestor.parent is not None
+                ancestor = ancestor.parent
+                if ancestor.data['type'] == 'op':
+                    assert ancestor.account is not None
+                    if ancestor.account != _account and not ancestor.id in visited:
+                        ancestor.account.notify('op', ancestor.id, _account.id)
         elif act == 'newop': # Start a new debate
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
@@ -424,7 +432,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     opponent = incoming_packet['name']
                     opponent_account = account.find_account_by_name(opponent)
                     whitelist.append(opponent_account.id)
-                    opponent_account.notif_in.append(('chal', op.id, _account.id))
+                    opponent_account.notify('chal', op.id, _account.id)
                 Node(op, {'type':'pod', 'text':'One-on-one debate'}, {'whitelist':whitelist}, _account)
                 Node(op, {'type':'pod', 'text':'Peanut gallery'}, None, _account)
             summary = text[:50] + '...' if len(text) > 50 else ''
@@ -444,7 +452,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                 assert pod.parent is not None
                 op = pod.parent
                 opponent_account = account.find_account_by_id(pod.meta['whitelist'][0])
-                opponent_account.notif_in.append(('acc', op.id, _account.id))
+                opponent_account.notify('acc', op.id, _account.id)
             else:
                 updates.append({
                     'act': 'alert',
@@ -486,26 +494,29 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         'updates': updates,
     }
 
-def pick_ops(path: str) -> List[str]:
+def pick_ops(path: str) -> Tuple[bool, List[str]]:
     op_list: List[str] = []
-    n = id_to_node(path)
-    if len(n.children) > 0 and n.children[0].data['type'] == 'op':
-        for i in reversed(range(len(n.children))):
+    node = id_to_node(path)
+    is_leaf_cat = (node.data['type'] == 'cat' and (len(node.children) == 0 or node.children[0].data['type'] == 'op'))
+    if is_leaf_cat and len(node.children) > 0:
+        for i in reversed(range(len(node.children))):
             op_list.append(f'{path}.{i}')
             if len(op_list) >= 6:
                 break
-    return op_list
+    return is_leaf_cat, op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:
     _account = session.get_session(session_id).active_account
     path = query['path'] if 'path' in query else ''
-    op_list = pick_ops(path)
+    is_leaf_cat, op_list = pick_ops(path)
     globals = [
         'let session_id = \'', session_id, '\';\n',
         'let path = "', path, '";\n',
         'let op_list = ', str(op_list), ';\n',
+        'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
+        'let admin = ', 'true' if _account.admin else 'false', ';\n',
         'let comment_count = ', str(_account.comment_count), ';\n',
-        'let rating_count = ', str(_account.ratings_count), ';\n',
+        'let rating_count = ', str(len(_account.ratings)), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
     ]

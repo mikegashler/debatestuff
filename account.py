@@ -6,6 +6,7 @@ import random
 import string
 import rec
 from indexable_dict import IndexableDict
+import os
 
 auto_name_1 = [
  'amazing', 'awesome', 'blue', 'brave', 'calm', 'cheesy', 'confused', 'cool', 'crazy', 'crafty',
@@ -46,8 +47,8 @@ class Account():
         self.name = name
         self.password = ''
         self.image = image
+        self.admin = False
         self.comment_count = 0
-        self.ratings_count = 0
         self.ratings: IndexableDict[str, List[float]] = IndexableDict()
         self.notif_in: List[Tuple[str, str, str]] = [] # type, post id, account id
         self.notif_out: List[Tuple[str, str, str, str]] = [] # type, post id, image, name
@@ -55,33 +56,35 @@ class Account():
         id_to_account[id] = self
 
     def marshal(self) -> Mapping[str, Any]:
-        return {
+        packet = {
             'id': self.id,
             'name': self.name,
             'pw': self.password,
             'image': self.image,
             'coms': self.comment_count,
-            'rats': self.ratings_count,
             'hist': self.ratings.marshal(),
-            'ni': self.notif_in,
-            'no': self.notif_out,
-            'np': self.notif_pos,
+            'notif_in': self.notif_in,
+            'notif_out': self.notif_out,
+            'notif_pos': self.notif_pos,
         }
+        if self.admin:
+            packet['admin'] = True
+        return packet
 
     @staticmethod
     def unmarshal(ob: Mapping[str, Any]) -> 'Account':
         account = Account(ob['name'], ob['image'], ob['id'])
         account.password = ob['pw']
         account.comment_count = ob['coms']
-        account.ratings_count = ob['rats']
         account.ratings = IndexableDict.unmarshal(ob['hist'])
-        account.notif_in = ob['ni']
-        account.notif_out = ob['no']
-        account.notif_pos = ob['np']
+        account.notif_in = ob['notif_in']
+        account.notif_out = ob['notif_out']
+        account.notif_pos = ob['notif_pos']
+        if 'admin' in ob:
+            account.admin = ob['admin']
         return account
 
     def rate(self, item_id: str, ratings: List[float]) -> None:
-        self.ratings_count += 1
         self.ratings[item_id] = ratings
         rec.engine.prepare_rating_profiles(self.id, item_id)
         rec.engine.train()
@@ -149,6 +152,10 @@ class Account():
                 name = f'{len(group)} {"person" if len(group) == 1 else "people"}'
                 self.notif_out.append((first[0], first[1], 'starter_pics/rate.jpeg', name))
 
+    def notify(self, type: str, node_id: str, account_id: str) -> None:
+        assert len(self.notif_in) < 1000, 'Notifications are out of control!'
+        self.notif_in.append((type, node_id, account_id))
+
 def find_account_by_id(id: str) -> Account:
     return id_to_account[id]
 
@@ -173,7 +180,10 @@ def scrub_name(s: str) -> str:
     s = s.replace('>', '&gt;')
     return s
 
-# Load the feed page
+
+# Load the account page
+if not os.path.exists('account.html'):
+    os.chdir('/home/mike/bin/debate/')
 with open('account.html') as f:
     lines = f.readlines()
     account_page = ''.join(lines)

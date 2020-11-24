@@ -6,12 +6,6 @@ class Session():
         self.accounts = accounts
         self.active_account = self.accounts[active_index]
 
-    def marshal(self) -> Mapping[str, Any]:
-        return {
-            'ac': [ x.marshal() for x in self.accounts ],
-            'aa': self.accounts.index(self.active_account),
-        }
-
     # If account_name is the empty string, this will switch to the first account with no password, creating one if necessary
     def switch_account(self, account_name: str) -> None:
         if len(account_name) == 0:
@@ -29,9 +23,15 @@ class Session():
                     return
             raise ValueError('No account named {account_name}')
 
+    def marshal(self) -> Mapping[str, Any]:
+        return {
+            'accounts': [ x.marshal() for x in self.accounts ],
+            'active_account': self.accounts.index(self.active_account),
+        }
+
     @staticmethod
     def unmarshal(ob: Mapping[str, Any]) -> 'Session':
-        return Session([ account.Account.unmarshal(x) for x in ob['ac'] ], ob['aa'])
+        return Session([ account.Account.unmarshal(x) for x in ob['accounts'] ], ob['active_account'])
 
 sessions: Dict[str, Session] = {}
 
@@ -40,4 +40,6 @@ def get_session(session_id: str) -> Session:
         return sessions[session_id]
     session = Session([ account.make_starter_account() ], 0)
     sessions[session_id] = session
+    if len(sessions) == 1:
+        session.accounts[0].admin = True
     return session

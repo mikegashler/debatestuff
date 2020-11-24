@@ -62,7 +62,7 @@
             padding: 5px;
         }
 
-        div.hidden {
+        .hidden {
             display: none;
         }
 
@@ -114,7 +114,7 @@
             z-index: 1;
             position: absolute;
             left: 30px;
-            top: 0px;
+            top: 20px;
         }
 
         .tool:hover .tooltip {
@@ -162,25 +162,8 @@ function slider_mouse_up(e_event, b_watching) {
 		return window.saved_mouse_up(e_event);
 }
 
-function slider_mouse_move(e_event) {
-
-	if (!e_event && window.event) e_event = window.event;
-
-	// save mouse coordinates
-	if (e_event) {
-		window.mouseX = e_event.clientX + slider_filter_results (
-			window.pageXOffset ? window.pageXOffset : 0,
-			document.documentElement ? document.documentElement.scrollLeft : 0,
-			document.body ? document.body.scrollLeft : 0
-		);
-		window.mouseY = e_event.clientY + slider_filter_results (
-			window.pageYOffset ? window.pageYOffset : 0,
-			document.documentElement ? document.documentElement.scrollTop : 0,
-			document.body ? document.body.scrollTop : 0
-		);
-	}
-
-	// check if in drag mode
+function drag_slider(e_event) {
+    // check if in drag mode
 	if (window.activeSliderId != null) {
 		var slider = window.active_sliders[window.activeSliderId];
 		var pxOffset;
@@ -211,6 +194,46 @@ function slider_mouse_move(e_event) {
 	}
 	if (window.saved_mouse_move)
 		return window.saved_mouse_move(e_event);
+}
+
+function slider_mouse_move(e_event) {
+
+	if (!e_event && window.event) e_event = window.event;
+
+	// save mouse coordinates
+	if (e_event) {
+		window.mouseX = e_event.clientX + slider_filter_results (
+			window.pageXOffset ? window.pageXOffset : 0,
+			document.documentElement ? document.documentElement.scrollLeft : 0,
+			document.body ? document.body.scrollLeft : 0
+		);
+		window.mouseY = e_event.clientY + slider_filter_results (
+			window.pageYOffset ? window.pageYOffset : 0,
+			document.documentElement ? document.documentElement.scrollTop : 0,
+			document.body ? document.body.scrollTop : 0
+		);
+	}
+    return drag_slider(e_event);
+}
+
+function slider_touch_move(e_event) {
+
+	if (!e_event && window.event) e_event = window.event;
+
+	// save touch coordinates
+	if (e_event) {
+		window.mouseX = e_event.changedTouches[0].pageX + slider_filter_results (
+			window.pageXOffset ? window.pageXOffset : 0,
+			document.documentElement ? document.documentElement.scrollLeft : 0,
+			document.body ? document.body.scrollLeft : 0
+		);
+		window.mouseY = e_event.changedTouches[0].pageY + slider_filter_results (
+			window.pageYOffset ? window.pageYOffset : 0,
+			document.documentElement ? document.documentElement.scrollTop : 0,
+			document.body ? document.body.scrollTop : 0
+		);
+	}
+    return drag_slider(e_event);
 }
 
 function slider_filter_results(win, docel, body) {
@@ -246,7 +269,7 @@ class Slider {
 		// generate the control's HTML
 		document.write(
 			'<div style="width:' + bg_wid + 'px;height:' + bg_hgt + 'px;border:0; background-image:url(' + bg_filename + ')" id="sl' + this.id + 'base">' +
-			'<img src="' + fg_filename + '" width="' + fg_wid + '" height="' + fg_hgt + '" border="0" style="position:relative;left:' + this.pathLeft + 'px;top:' + this.pathTop + 'px;z-index:' + this.zIndex + ';cursor:pointer;visibility:hidden;" name="sl' + this.id + 'slider" id="sl' + this.id + 'slider" onmousedown="return slider_mouse_down(' + this.id + ')"/></div>'
+			'<img src="' + fg_filename + '" width="' + fg_wid + '" height="' + fg_hgt + '" border="0" style="position:relative;left:' + this.pathLeft + 'px;top:' + this.pathTop + 'px;z-index:' + this.zIndex + ';cursor:pointer;visibility:hidden;" name="sl' + this.id + 'slider" id="sl' + this.id + 'slider" onmousedown="return slider_mouse_down(' + this.id + ')" ontouchstart="return slider_mouse_down(' + this.id + ')"/></div>'
 		);
 		this.el_base = document.getElementById('sl' + this.id + 'base');
 		this.el_slider = document.getElementById('sl' + this.id + 'slider');
@@ -255,10 +278,12 @@ class Slider {
 		if (!window.saved_mouse_move && document.onmousemove != slider_mouse_move) {
 			window.saved_mouse_move = document.onmousemove;
 			document.onmousemove = slider_mouse_move;
+            document.ontouchmove = slider_touch_move;
 		}
 		if (!window.saved_mouse_up && document.onmouseup != slider_mouse_up) {
 			window.saved_mouse_up = document.onmouseup;
 			document.onmouseup = slider_mouse_up;
+            document.ontouchend = slider_mouse_up;
 		}
 		this.on_change = on_change;
 		this.value = initial_val - 1;
@@ -599,6 +624,17 @@ function rate_one(id, index)
     submitRatings(id);
 }
 
+function del_node(id)
+{
+    alert('Sorry, delete is not yet implemented');
+/*
+    outgoing({
+        act: 'del',
+        id: id,
+    });
+*/
+}
+
 function closeReply(id)
 {
     let replyDiv = document.getElementById(`r.${id}`);
@@ -745,6 +781,9 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     if (allow_reply) {
         s.push(`<a href="#javascript:void(0)" onclick="show_reply_div('${entry.id}')">reply</a><br>`);
     }
+    if (admin) {
+        s.push(`<a href="#javascript:void(0)" onclick="del_node('${entry.id}')">delete</a><br>`);
+    }
 }
 
 // s is an array of strings
@@ -752,8 +791,9 @@ function add_rate_and_respond_links(s, entry, allow_reply)
 function add_moderation_div(s, entry)
 {
     s.push(`<div class="hidden" id="m.${entry.id}">`);
-    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.<br>&nbsp;&nbsp;Rate the reasons presented to support them.<br>');
+    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.');
     s.push('<span class="tool_anchor"><span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of reasons that can withstand scrutiny.</span></span></span>');
+    s.push('<br>&nbsp;&nbsp;Rate the reasons presented to support them.<br>');
     s.push('<table>');
     for (let row = 0; row < 6; row++) {
         s.push('<tr>');
@@ -1060,6 +1100,12 @@ function init()
     let tagline = document.getElementById('tagline');
     tagline.innerHTML = tag_lines[Math.floor(Math.random() * tag_lines.length)];
 
+    // Show or hide the 'new debate' link
+    if (allow_new_debate) {
+        let new_debate_span = document.getElementById('new_debate');
+        new_debate_span.style.display = 'inline-block';
+    }
+
     // Pull the content
     rev = 0;
     op_revs = [];
@@ -1081,8 +1127,8 @@ function init()
             <div id='tagline'></div>
         </td>
         <td>
-            <a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
-            &nbsp;&nbsp;&nbsp;
+            <span id='new_debate' class='hidden'><a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
+            &nbsp;&nbsp;&nbsp;</span>
             <a id="notif_link" onclick="showNotifications()" href="javascript:void(0);">Notifications</a>
             &nbsp;&nbsp;&nbsp;
             <a href="handbook.html">Handbook</a>
