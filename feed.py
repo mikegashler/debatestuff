@@ -209,7 +209,7 @@ def annotate_updates(updates: List[Dict[str, Any]], _account: account.Account) -
         ur, count = get_unbiased_ratings(item_id)
         unbiased_ratings.append(ur)
         ratings_counts.append(count)
-    biased_ratings = _account.get_biased_ratings(item_ids)
+    biased_ratings = rec.engine.get_ratings(_account.id, item_ids)
     new_item_threshold = 3 # Number of ratings before an item is no longer considered "new"
     for up, c, ur, br in zip(updates, ratings_counts, unbiased_ratings, biased_ratings):
         # Compute unbiased index, biased index, unbiased score, and biased score for this update and user
@@ -359,19 +359,17 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
     try:
         if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
             raise ValueError('malformed request')
-        _account = session.get_session(session_id).active_account
+        _account = session.get_or_make_session(session_id).active_account()
         act = incoming_packet['act']
         if act == 'update': # Just get updates
             pass
         elif act == 'rate': # Rate a comment
             node = id_to_node(incoming_packet['id'])
             node.rate(incoming_packet['ratings']) # unbiased
-            _account.rate(incoming_packet['id'], incoming_packet['ratings']) # biased
+            rec.engine.rate(_account.id, incoming_packet['id'], incoming_packet['ratings']) # biased
             updates.append({
                 'act': 'rate',
                 'id': incoming_packet['id'],
-                'cc': _account.comment_count,
-                'rc': len(_account.ratings),
             })
             text = node.data['text']
             if node.account is not None and node.account != _account:
@@ -392,8 +390,6 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             updates.append({
                 'act': 'focus',
                 'id': child.id,
-                'cc': _account.comment_count,
-                'rc': len(_account.ratings),
             })
             summary = text[:50] + '...' if len(text) > 50 else ''
             print(f'Added node {child.id} with text \'{summary}\'')
@@ -459,10 +455,10 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     'msg': 'Sorry, someone else accepted this challenge first',
                 })
         elif act == 'notifs': # Get notifications
-            _account.digest_notifications()
+            notif_out = _account.digest_notifications()
             updates.append({
                 'act': 'notifs',
-                'pos': _account.notif_pos,
+                'pos': 0, #_account.notif_pos,
                 'msgs': [
                     {
                         'type': m[0],
@@ -471,7 +467,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                         'name': m[3],
                         'summ': summarize_post(m[1], 30),
                     }
-                    for m in _account.notif_out ]
+                    for m in notif_out ]
             })
         else:
             raise RuntimeError('unrecognized action')
@@ -485,7 +481,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
     annotate_updates(updates, _account)
     updates.append({
         'act': 'nc', # notification count
-        'val': len(_account.notif_in),
+        # 'val': len(_account.notif_in),
     })
     return {
         'rev': new_rev,
@@ -506,7 +502,7 @@ def pick_ops(path: str) -> Tuple[bool, List[str]]:
     return is_leaf_cat, op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:
-    _account = session.get_session(session_id).active_account
+    _account = session.get_or_make_session(session_id).active_account()
     path = query['path'] if 'path' in query else ''
     is_leaf_cat, op_list = pick_ops(path)
     globals = [
@@ -516,7 +512,7 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
         'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
         'let admin = ', 'true' if _account.admin else 'false', ';\n',
         'let comment_count = ', str(_account.comment_count), ';\n',
-        'let rating_count = ', str(len(_account.ratings)), ';\n',
+        # 'let rating_count = ', str(len(_account.ratings)), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
     ]

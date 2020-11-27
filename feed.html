@@ -1005,12 +1005,8 @@ function update_entry(entry)
         add_node(entry);
     } else if (entry.act === 'focus') {
         let id = entry.id;
-        comment_count = entry.cc;
-        rating_count = entry.rc;
         setTimeout(function() { set_focus(id); }, 200); // a little delay b/c the new comment may not be added yet
     } else if (entry.act === 'rate') {
-        comment_count = entry.cc;
-        rating_count = entry.rc;
         store_ratings(entry);
     } else if (entry.act === 'pushop') { // server wants to push an OP on us. (It's probably a new OP we just requested to have created.)
         add_op(entry);

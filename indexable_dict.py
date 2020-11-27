@@ -33,22 +33,16 @@ class IndexableDict(Generic[K, V]):
     def vals(self) -> List[V]:
         return self._vals
 
-    def to_dict(self) -> Dict[K, V]:
+    def to_mapping(self) -> Mapping[K, V]:
         return { k:v for k,v in zip(self._keys, self._vals) }
+
+    @staticmethod
+    def from_mapping(m: Mapping[K, V]) -> "IndexableDict[K,V]":
+        id:"IndexableDict[K,V]" = IndexableDict()
+        for key in m.keys():
+            id[key] = m[key]
+        return id
 
     def random_key(self) -> K:
         assert len(self._keys) > 0, 'No keys to choose from'
         return self._keys[random.randrange(len(self._keys))]
-
-    def marshal(self) -> Mapping[K, V]:
-        return {
-            self._keys[i]: (self._vals[i] if isinstance(self._vals[i], list) else self._vals[i].marshal()) # type: ignore
-            for i in range(len(self._keys))
-        }
-
-    @staticmethod
-    def unmarshal(ob: Mapping[K, V]) -> "IndexableDict[K,V]":
-        id:"IndexableDict[K,V]" = IndexableDict()
-        for key in ob.keys():
-            id[key] = ob[key]
-        return id

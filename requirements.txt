@@ -1,6 +1,7 @@
 # dependencies
 opencv-contrib-python==4.4.0.44
 tensorflow==2.3.1
+pymongo==3.11.0
 
 # dev dependencies
 mypy==0.761

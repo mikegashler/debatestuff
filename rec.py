@@ -7,6 +7,7 @@ import heapq
 from datetime import datetime
 import dateutil.parser # (When Python 3.7 becomes available, omit this line and use datetime.fromisoformat where needed)
 from indexable_dict import IndexableDict
+from db import db
 
 rating_choices = [
     (1.,'Strong','Support for a position was given that would be difficult to dismiss'),
@@ -109,7 +110,7 @@ class Engine:
     def marshal(self) -> Mapping[str, Any]:
         return {
                 'model': self.model.marshal(),
-                'user_profiles': { k:self.user_profiles[k].marshal() for k in self.user_profiles.to_dict() },
+                'user_profiles': { k:self.user_profiles[k].marshal() for k in self.user_profiles.to_mapping() },
                 'item_profiles': { k:self.item_profiles[k].marshal() for k in self.item_profiles },
                 'rating_freq': rating_freq,
                 'rating_count': rating_count,
@@ -135,41 +136,52 @@ class Engine:
         rating_freq = ob['rating_freq']
         rating_count = ob['rating_count']
 
-    def prepare_rating_profiles(self, user_id: str, item_id: str) -> None:
+    def rate(self, user_id: str, item_id: str, ratings: List[float]) -> None:
+        db.put_rating(user_id, item_id, ratings)
         if not user_id in self.user_profiles:
             self.user_profiles[user_id] = Profile(user_id)
         if not item_id in self.item_profiles:
             self.item_profiles[item_id] = Profile(item_id)
+        for i in range(5):
+            self.train()
 
-    def _random_sample(self) -> Tuple[Profile, Profile, List[float]]:
-        from account import find_account_by_id
-        while True:
-            if len(self.account_samplers[self.account_index]) == 0:
-                self.account_samplers[self.account_index] = self.user_profiles.random_key()
-                continue
-            acc = find_account_by_id(self.account_samplers[self.account_index])
-            weight = max(1, min(16, len(acc.ratings) / 4))
-            if random.uniform(0, 1) < 1. / (1. + weight):
-                self.account_samplers[self.account_index] = self.user_profiles.random_key()
-                continue
-            user_id = self.account_samplers[self.account_index]
-            self.account_index = (self.account_index + 1) % len(self.account_samplers)
-            item_id = acc.ratings.random_key()
-            ratings = acc.ratings[item_id]
-            return self.user_profiles[user_id], self.item_profiles[item_id], ratings
+    # Returns ratings for the specified list of item_ids.
+    # If this account has previously rated the item, returns those ratings instead.
+    # If there is no profile for the item (because no one has ever rated it), returns [].
+    def get_ratings(self, user_id: str, item_ids: List[str]) -> List[List[float]]:
+        prior_ratings = db.get_ratings_for_rated_items(user_id, item_ids)
+        rated = [ (item_id in prior_ratings) for item_id in item_ids ] # List of bools. True iff this account has rated the item
+        unrated = [ item_ids[i] for i in range(len(rated)) if not rated[i] ] # List of item ids that need rating
+        can_be_rated = [ (item_id in self.item_profiles) for item_id in unrated ] # List of bools. True iff the item can be rated
+        rate_me = [ unrated[i] for i in range(len(can_be_rated)) if can_be_rated[i] ] # List of item ids to rate
+        self_ids = [ user_id for _ in rate_me ]
+        ratings = self.predict(self_ids, rate_me)
+        j = 0
+        k = 0
+        results: List[List[float]] = []
+        for i in range(len(item_ids)):
+            if rated[i]:
+                results.append(prior_ratings[item_ids[i]])
+            else:
+                if can_be_rated[j]:
+                    results.append(ratings[k])
+                    k += 1
+                else:
+                    results.append([])
+                j += 1
+        assert j == len(unrated) and k == len(rate_me), 'something is broken'
+        return results
 
     # Performs one batch of training on the pair model
     def train(self) -> None:
         # Make a batch
-        users: List[Profile] = []
-        items: List[Profile] = []
-        for i in range(self.batch_users.shape[0]):
-            user, item, ratings = self._random_sample()
-            users.append(user)
-            items.append(item)
-            self.batch_users[i] = user.values
-            self.batch_items[i] = item.values
-            self.batch_ratings[i] = ratings
+        samples = db.get_random_ratings(self.batch_users.shape[0])
+        assert len(samples) == self.batch_users.shape[0], 'unexpected number of samples'
+        for i in range(len(samples)):
+            sample = samples[i]
+            self.batch_users[i] = self.user_profiles[sample[0]].values
+            self.batch_items[i] = self.item_profiles[sample[1]].values
+            self.batch_ratings[i] = sample[2]
 
         # Refine
         self.model.set_users(self.batch_users)
@@ -179,9 +191,10 @@ class Engine:
         # Store changes
         updated_users = self.model.batch_user.numpy()
         updated_items = self.model.batch_item.numpy()
-        for i in range(len(users)):
-            users[i].values = updated_users[i]
-            items[i].values = updated_items[i]
+        for i in range(len(samples)):
+            sample = samples[i]
+            self.user_profiles[sample[0]].values = updated_users[i]
+            self.item_profiles[sample[1]].values = updated_items[i]
 
     # Assumes the profiles for the users and items already exist
     def predict(self, users:List[str], items:List[str]) -> List[List[float]]:
