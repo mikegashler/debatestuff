@@ -176,7 +176,10 @@ class Engine:
     def train(self) -> None:
         # Make a batch
         samples = db.get_random_ratings(self.batch_users.shape[0])
-        assert len(samples) == self.batch_users.shape[0], 'unexpected number of samples'
+        if len(samples) < self.batch_users.shape[0]:
+            print(f'Skipping training because there were only {len(samples)} samples')
+            return
+        assert len(samples) == self.batch_users.shape[0], 'too many samples'
         for i in range(len(samples)):
             sample = samples[i]
             self.batch_users[i] = self.user_profiles[sample[0]].values

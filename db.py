@@ -4,24 +4,53 @@ import json
 import os
 from indexable_dict import IndexableDict
 
+def bootstrap() -> None:
+    import posts
+    root_id = '000000000000'
+    root = posts.post_cache.add(root_id, posts.Post(root_id, '', '', 'cat', 'Everything', ''))
+    c1 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Politics', '')
+    posts.post_cache.add(c1.id, c1)
+    c2 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'STEM', '')
+    posts.post_cache.add(c2.id, c2)
+    c3 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Entertainment', '')
+    posts.post_cache.add(c3.id, c3)
+    c4 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Theology', '')
+    posts.post_cache.add(c4.id, c4)
+    c5 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Miscellaneous', '')
+    posts.post_cache.add(c5.id, c5)
+
+def flush_caches() -> None:
+    import account
+    import session
+    import posts
+    import history
+    account.account_cache.flush()
+    session.session_cache.flush()
+    posts.post_cache.flush()
+    history.history_cache.flush()
+
 # An in-memory "database" that periodically writes to a flat file
 class FlatFile():
     def __init__(self) -> None:
         self.sessions: Dict[str, Mapping[str, Any]] = {}
         self.accounts: Dict[str, Mapping[str, Any]] = {}
-        self.ratings: IndexableDict[str, List[float]] = IndexableDict()
-        self.notif_in: Dict[str, List[Tuple[str, str, str]]] = {}
-        self.notif_out: Dict[str, List[Tuple[str, str, str, str]]] = {}
+        self.notif_in: Dict[str, Mapping[str, Any]] = {}
+        self.notif_out: Dict[str, Mapping[str, Any]] = {}
         self.posts: Dict[str, Mapping[str, Any]] = {}
+        self.history: Dict[str, Mapping[str, Any]] = {}
+        self.ratings: IndexableDict[str, List[float]] = IndexableDict()
 
-    # Load all the data from a flat file
+    # Save all the data to a flat file
     def save(self) -> None:
+        flush_caches()
         packet = {
             'sessions': self.sessions,
             'accounts': self.accounts,
-            'ratings': self.ratings.to_mapping(),
             'notif_in': self.notif_in,
             'notif_out': self.notif_out,
+            'posts': self.posts,
+            'history': self.history,
+            'ratings': self.ratings.to_mapping(),
             # 'tree': feed.root.marshal(),
             # 'engine': rec.engine.marshal(),
         }
@@ -31,16 +60,10 @@ class FlatFile():
         with open('state.json', mode='wb+') as file:
             file.write(blob)
 
-    # Save all the data to a flat file
+    # Load all the data from a flat file
     def load(self) -> None:
         if not os.path.exists('state.json'):
-            print('\nNo \'state.json\' file was found, so creating an empty tree.')
-            # root = feed.id_to_node('')
-            # feed.Node(root, {'type':'cat', 'title':'Politics', 'descr':'A place for political debates'}, None, None)
-            # feed.Node(root, {'type':'cat', 'title':'STEM', 'descr':'Debates about science, technology, engineering, math'}, None, None)
-            # feed.Node(root, {'type':'cat', 'title':'Entertainment', 'descr':'Debates about movies, books, and celebrities'}, None, None)
-            # feed.Node(root, {'type':'cat', 'title':'Theology', 'descr':'Religion, God, morality, origins, and purpose'}, None, None)
-            # feed.Node(root, {'type':'cat', 'title':'Miscellaneous', 'descr':'Any debate that does not fit elsewhere'}, None, None)
+            bootstrap()
         else:
             # Parse the file
             blob = None
@@ -49,19 +72,18 @@ class FlatFile():
             packet = json.loads(blob)
             self.sessions = packet['sessions']
             self.accounts = packet['accounts']
-            self.ratings = IndexableDict.from_mapping(packet['ratings'])
             self.notif_in = packet['notif_in']
             self.notif_out = packet['notif_out']
+            self.posts = packet['posts']
+            self.history = packet['history']
+            self.ratings = IndexableDict.from_mapping(packet['ratings'])
 
-            # # Load the node tree
-            # feed.root = feed.Node.unmarshal(packet['tree']) # assumes the accounts have already been loaded
-            #
             # # Load the recommender engine
             # rec.engine.unmarshal(packet['engine'])
 
     # Consumes a marshaled session object (including its own '_id' field)
-    def put_session(self, session: Mapping[str, Any]) -> None:
-        self.sessions[session['_id']] = session
+    def put_session(self, id: str, session: Mapping[str, Any]) -> None:
+        self.sessions[id] = session
 
     # Consumes a session id
     # Returns a marshaled session object
@@ -69,8 +91,8 @@ class FlatFile():
         return self.sessions[id]
 
     # Consumes a marshaled account object (including its own '_id' field)
-    def put_account(self, account: Mapping[str, Any]) -> None:
-        self.accounts[account['_id']] = account
+    def put_account(self, id: str, account: Mapping[str, Any]) -> None:
+        self.accounts[id] = account
 
     # Consumes an account id
     # Returns a marshaled account
@@ -85,6 +107,42 @@ class FlatFile():
             if account['name'] == name:
                 return account
         raise KeyError(name)
+
+    # Consumes an account id and a list of notifications
+    def put_notif_in(self, account_id: str, doc: Mapping[str, Any]) -> None:
+        self.notif_in[account_id] = doc
+
+    # Consumes an account id
+    # Returns a list of notifications
+    def get_notif_in(self, account_id: str) -> Mapping[str, Any]:
+        return self.notif_in[account_id]
+
+    # Consumes an account id and a list of notifications
+    def put_notif_out(self, account_id: str, doc: Mapping[str, Any]) -> None:
+        self.notif_out[account_id] = doc
+
+    # Consumes an account id
+    # Returns a list of notifications
+    def get_notif_out(self, account_id: str) -> Mapping[str, Any]:
+        return self.notif_out[account_id]
+
+    # Consumes a marshaled post object (including its own '_id' field)
+    def put_post(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.posts[id] = doc
+
+    # Consumes a post id
+    # Returns a marshaled post object
+    def get_post(self, id: str) -> Mapping[str, Any]:
+        return self.posts[id]
+
+    # Consumes a history object (including its own '_id' field for the OP post)
+    def put_history(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.history[id] = doc
+
+    # Consumes a post id for the OP
+    # Returns a history object
+    def get_history(self, id: str) -> Mapping[str, Any]:
+        return self.history[id]
 
     # Consumes an account id, a post id, and a list of ratings
     def put_rating(self, user: str, item: str, vals: List[float]) -> None:
@@ -122,33 +180,6 @@ class FlatFile():
             results.append((key[:first_comma], key[first_comma+1:], self.ratings[key]))
         return results
 
-    # Consumes an account id and a list of notifications
-    def put_notif_in(self, account_id: str, notifs: List[Tuple[str, str, str]]) -> None:
-        self.notif_in[account_id] = notifs
-
-    # Consumes an account id
-    # Returns a list of notifications
-    def get_notif_in(self, account_id: str) -> List[Tuple[str, str, str]]:
-        return self.notif_in[account_id]
-
-    # Consumes an account id and a list of notifications
-    def put_notif_out(self, account_id: str, notifs: List[Tuple[str, str, str, str]]) -> None:
-        self.notif_out[account_id] = notifs
-
-    # Consumes an account id
-    # Returns a list of notifications
-    def get_notif_out(self, account_id: str) -> List[Tuple[str, str, str, str]]:
-        return self.notif_out[account_id]
-
-    # Consumes a marshaled session object (including its own '_id' field)
-    def put_post(self, doc: Mapping[str, Any]) -> None:
-        self.posts[doc['_id']] = doc
-
-    # Consumes a session id
-    # Returns a marshaled session object
-    def get_post(self, id: str) -> Mapping[str, Any]:
-        return self.posts[id]
-
 
 
 
@@ -163,24 +194,26 @@ class Mongo():
         self.db = Mongo.client['debatestuff']
         self.sessions = self.db['sessions']
         self.accounts = self.db['accounts']
-        self.ratings = self.db['ratings']
         self.notif_in = self.db['notif_in']
         self.notif_out = self.db['notif_out']
         self.posts = self.db['posts']
-        # print(self.sessions.count())
-        # print(self.db.command("collstats", "sessions"))
+        self.history = self.db['history']
+        self.ratings = self.db['ratings']
 
-    # Does nothing
     def save(self) -> None:
-        pass
+        flush_caches()
 
-    # Does nothing
     def load(self) -> None:
-        pass
+        if self.posts.count() == 0:
+            bootstrap()
 
     # Consumes a marshaled session object (including its own '_id' field)
-    def put_session(self, doc: Mapping[str, Any]) -> None:
-        self.sessions.insert_one(doc)
+    def put_session(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.sessions.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
 
     # Consumes a session id
     # Returns a marshaled session object
@@ -191,8 +224,12 @@ class Mongo():
         return doc
 
     # Consumes a marshaled account object (including its own '_id' field)
-    def put_account(self, doc: Mapping[str, Any]) -> None:
-        self.accounts.insert_one(doc)
+    def put_account(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.accounts.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
 
     # Consumes an account id
     # Returns a marshaled account
@@ -210,9 +247,73 @@ class Mongo():
             raise KeyError(name)
         return doc
 
+    # Consumes an account id and a list of notifications
+    def put_notif_in(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.notif_in.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes an account id
+    # Returns a list of notifications
+    def get_notif_in(self, account_id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.notif_in.find_one({'_id': account_id})
+        if doc is None:
+            raise KeyError(account_id)
+        return doc
+
+    # Consumes an account id and a list of notifications
+    def put_notif_out(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.notif_out.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes an account id
+    # Returns a list of notifications
+    def get_notif_out(self, account_id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.notif_out.find_one({'_id': account_id})
+        if doc is None:
+            raise KeyError(account_id)
+        return doc
+
+    # Consumes a marshaled session object (including its own '_id' field)
+    def put_post(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.posts.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes a post id
+    # Returns a marshaled session object
+    def get_post(self, id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.posts.find_one({'_id': id})
+        if doc is None:
+            raise KeyError(id)
+        return doc
+
+    # Consumes a history object (including its own '_id' field for the OP)
+    def put_history(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.history.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes a post id for the OP
+    # Returns a marshaled history object
+    def get_history(self, id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.history.find_one({'_id': id})
+        if doc is None:
+            raise KeyError(id)
+        return doc
+
     # Consumes an account id, a post id, and a list of ratings
     def put_rating(self, user_id: str, item_id: str, vals: List[float]) -> None:
-        self.ratings.update_one(
+        self.ratings.replace_one(
             {'_id': f'{user_id},{item_id}'},
             {
                 'user': user_id,
@@ -260,50 +361,6 @@ class Mongo():
     def get_random_ratings(self, n: int) -> List[Tuple[str, str, List[float]]]:
         cursor = self.ratings.aggregate([{'$sample': { 'size': n }}])
         return [ (doc['user'], doc['item'], doc['vals']) for doc in cursor ]
-
-    # Consumes an account id and a list of notifications
-    def put_notif_in(self, account_id: str, notifs: List[Tuple[str, str, str]]) -> None:
-        self.notif_in.update_one(
-            {'_id': account_id},
-            {'notifs': notifs},
-            upsert=True,
-        )
-
-    # Consumes an account id
-    # Returns a list of notifications
-    def get_notif_in(self, account_id: str) -> List[Tuple[str, str, str]]:
-        doc: Optional[Mapping[str, Any]] = self.notif_in.find_one({'_id': account_id})
-        if doc is None:
-            raise KeyError(account_id)
-        return cast(List[Tuple[str, str, str]], doc['notifs'])
-
-    # Consumes an account id and a list of notifications
-    def put_notif_out(self, account_id: str, notifs: List[Tuple[str, str, str, str]]) -> None:
-        self.notif_out.update_one(
-            {'_id': account_id},
-            {'notifs': notifs},
-            upsert=True,
-        )
-
-    # Consumes an account id
-    # Returns a list of notifications
-    def get_notif_out(self, account_id: str) -> List[Tuple[str, str, str, str]]:
-        doc: Optional[Mapping[str, Any]] = self.notif_out.find_one({'_id': account_id})
-        if doc is None:
-            raise KeyError(account_id)
-        return cast(List[Tuple[str, str, str, str]], doc['notifs'])
-
-    # Consumes a marshaled session object (including its own '_id' field)
-    def put_post(self, doc: Mapping[str, Any]) -> None:
-        self.posts.insert_one(doc)
-
-    # Consumes a session id
-    # Returns a marshaled session object
-    def get_post(self, id: str) -> Mapping[str, Any]:
-        doc: Optional[Mapping[str, Any]] = self.posts.find_one({'_id': id})
-        if doc is None:
-            raise KeyError(id)
-        return doc
 
 
 # db = FlatFile()

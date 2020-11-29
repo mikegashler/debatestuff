@@ -33,6 +33,16 @@ class IndexableDict(Generic[K, V]):
     def vals(self) -> List[V]:
         return self._vals
 
+    def drop(self, key: K) -> None:
+        index = self.dict[key]
+        last_key = self._keys[-1]
+        self._keys[index], self._keys[-1] = self._keys[-1], self._keys[index]
+        del self._keys[-1]
+        self._vals[index], self._vals[-1] = self._vals[-1], self._vals[index]
+        del self._vals[-1]
+        self.dict[last_key] = index
+        del self.dict[key]
+
     def to_mapping(self) -> Mapping[K, V]:
         return { k:v for k,v in zip(self._keys, self._vals) }
 

@@ -8,6 +8,7 @@ import rec
 from indexable_dict import IndexableDict
 import os
 from db import db
+import cache
 
 auto_name_1 = [
  'amazing', 'awesome', 'blue', 'brave', 'calm', 'cheesy', 'confused', 'cool', 'crazy', 'crafty',
@@ -38,9 +39,7 @@ auto_name_3 = [
 ]
 
 def new_account_id() -> str:
-    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
-
-account_cache: Dict[str, "Account"] = {}
+    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(12))
 
 class Account():
     def __init__(self, id: str, name: str, image: str) -> None:
@@ -50,103 +49,41 @@ class Account():
         self.image = image
         self.admin = False
         self.comment_count = 0
-        # self.notif_pos = 0
-        global account_cache
-        if len(account_cache) > 500:
-            account_cache = {} # Periodically flush the cache so it doesn't get bloated
-        account_cache[id] = self
 
     def marshal(self) -> Mapping[str, Any]:
         packet = {
-            '_id': self.id,
             'name': self.name,
             'pw': self.password,
             'image': self.image,
             'coms': self.comment_count,
             'admin': self.admin,
-            # 'notif_pos': self.notif_pos,
         }
         return packet
 
     @staticmethod
-    def unmarshal(ob: Mapping[str, Any]) -> 'Account':
-        account = Account(ob['_id'], ob['name'], ob['image'])
+    def unmarshal(id: str, ob: Mapping[str, Any]) -> 'Account':
+        account = Account(id, ob['name'], ob['image'])
         account.password = ob['pw']
         account.comment_count = ob['coms']
         account.admin = ob['admin']
-        # account.notif_pos = ob['notif_pos']
         return account
 
-    # Extract a group of notifications that all have the same type and node id
-    def group_notifs(self, notif_in: List[Tuple[str, str, str]]) -> List[Tuple[str, str, str]]:
-        group: List[Tuple[str, str, str]] = []
-        tail = notif_in[len(notif_in) - 1]
-        group.append(tail)
-        del notif_in[len(notif_in) - 1]
-        for i in reversed(range(len(notif_in))):
-            notif = notif_in[i]
-            if notif[0] == tail[0] and notif[1] == tail[1]:
-                group.append(notif)
-                del notif_in[i]
-        return group
+def fetch_account(id: str) -> Account:
+    return Account.unmarshal(id, db.get_account(id))
 
-    # Consumes notif_in. Pushes messages into notif_out and returns notif_out
-    def digest_notifications(self) -> List[Tuple[str, str, str, str]]:
-        # self.notif_pos = len(self.notif_out)
-        try:
-            notif_in = db.get_notif_in(self.id)
-        except KeyError:
-            notif_in = []
-        dirty = False
-        try:
-            notif_out = db.get_notif_out(self.id)
-        except KeyError:
-            notif_out = []
-        while len(notif_in) > 0:
-            dirty = True
-            while len(notif_out) >= 30:
-                del notif_out[0]
-                # self.notif_pos = max(0, self.notif_pos - 1)
-            group = self.group_notifs(notif_in)
-            first = group[0]
-            if len(first[2]) > 0:
-                person = db.get_account(first[2])
-                name = person['name']
-                if len(group) == 2:
-                    person2 = db.get_account(group[1][2])
-                    name += f' and {person2["name"]}'
-                elif len(group) > 2:
-                    name += f' and {len(group) - 1} others'
-                notif_out.append((first[0], first[1], person['image'], name))
-            else:
-                name = f'{len(group)} {"person" if len(group) == 1 else "people"}'
-                notif_out.append((first[0], first[1], 'starter_pics/rate.jpeg', name))
-        if dirty:
-            db.put_notif_out(self.id, notif_out)
-            db.put_notif_in(self.id, notif_in)
-        return notif_out
+def store_account(id: str, _account: Account) -> None:
+    assert id == _account.id, 'mismatching ids'
+    db.put_account(id, _account.marshal())
 
-    def notify(self, type: str, node_id: str, account_id: str) -> None:
-        try:
-            notif_in = db.get_notif_in(self.id)
-        except KeyError:
-            notif_in = []
-        assert len(notif_in) < 1000, 'Notifications are out of control!'
-        notif_in.append((type, node_id, account_id))
-        db.put_notif_in(self.id, notif_in)
-
-def find_account_by_id(id: str) -> Account:
-    if id in account_cache:
-        return account_cache[id]
-    packet = db.get_account(id)
-    return Account.unmarshal(packet)
+account_cache: cache.Cache[str,Account] = cache.Cache(300, fetch_account, store_account)
 
 def find_account_by_name(name: str) -> Account:
     packet = db.get_account_by_name(name)
     if packet['_id'] in account_cache:
         return account_cache[packet['_id']]
     else:
-        return Account.unmarshal(packet)
+        acc = Account.unmarshal(packet['_id'], packet)
+        return account_cache.add(acc.id, acc)
 
 def make_starter_account() -> Account:
     n1 = random.randrange(len(auto_name_1))
@@ -155,8 +92,7 @@ def make_starter_account() -> Account:
     name = f'{auto_name_1[n1]} {auto_name_2[n2]} {auto_name_3[n3]}'
     image = f'starter_pics/{auto_name_2[n2]}.jpeg'
     account = Account(new_account_id(), name, image)
-    db.put_account(account.marshal())
-    return account
+    return account_cache.add(account.id, account)
 
 def scrub_name(s: str) -> str:
     s = s[:100]
@@ -196,7 +132,7 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
 def do_account(query: Mapping[str, Any], session_id: str) -> str:
     sess = session.get_or_make_session(session_id)
     account = sess.active_account()
-    accounts = [ find_account_by_id(id) for id in sess.account_ids ]
+    accounts = [ account_cache[id] for id in sess.account_ids ]
     globals = [
         'let session_id = \'', session_id, '\';\n',
         'let username = \'', account.name, '\';\n',

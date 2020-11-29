@@ -463,31 +463,19 @@ function show_reply_div(id) {
     }
 }
 
-function get_parent_nursery_id(id)
-{
-    let last_dot = id.lastIndexOf('.');
-    if (last_dot < 0) {
-        return 'soil';
-    } else {
-        let parent_id = id.substr(0, last_dot);
-        return `n.${parent_id}`;
-    }
-}
-
-function find_or_make_node_div(id)
+function find_or_make_node_div(entry)
 {
     // See if the div already exists
-    let existing = document.getElementById(`d.${id}`);
+    let existing = document.getElementById(`d.${entry.id}`);
     if (existing)
         return existing;
 
     // Make the new div
-    let nursery_id = get_parent_nursery_id(id);
-    let nursery_div = document.getElementById(nursery_id);
+    let nursery_div = document.getElementById(`n.${entry.par}`);
     if (!nursery_div)
-        alert(`Received an update for a node I have not yet received: ${nursery_id}, ${path}`);
+        alert(`Received an update for a node I have not yet received: n.${entry.par} for d.${entry.id}`);
     new_div = document.createElement("div");
-    new_div.id = `d.${id}`;
+    new_div.id = `d.${entry.id}`;
     nursery_div.appendChild(new_div);
     return new_div;
 }
@@ -840,11 +828,8 @@ function make_cat(newDiv, entry)
     if (count > 0) {
         s.push('└─');
     }
-    s.push(`<a href='?path=${entry.id}'>${entry.data.title}</a>\n`);
+    s.push(`<a href='?path=${entry.id}'>${entry.text}</a>\n`);
     s.push('</big></big><br>');
-    if (entry.id == path) {
-        s.push(`<p>${entry.data.descr}</p><br><br>\n`);
-    }
     s.push(`<div id="n.${entry.id}"></div>\n`);
     newDiv.innerHTML = s.join('');
 }
@@ -859,7 +844,7 @@ function make_op(newDiv, entry)
     s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}">`);
     s.push('</td><td width=4px></td>');
     s.push(`<td><b>${entry.name}</b><br>`);
-    s.push(`<big><big>${entry.data.text}</big></big></td>`);
+    s.push(`<big><big>${entry.text}</big></big></td>`);
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
     s.push('</td>');
@@ -874,7 +859,7 @@ function make_pod(newDiv, entry)
     let s = [];
     s.push('<table><tr><td>');
     s.push('<table cellpadding=10px><tr>');
-    s.push(`<td valign=top><h3>${entry.data.text}</h3></td>`);
+    s.push(`<td valign=top><h3>${entry.text}</h3></td>`);
     //s.push(`<td>${entry.id}</td>`);
     s.push('</tr></table>');
     s.push('</td></tr></table>\n');
@@ -915,7 +900,7 @@ function make_rp(newDiv, entry)
         s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top>');
         s.push(`<b>${entry.name}</b><br>`);
-        s.push(entry.data.text);
+        s.push(entry.text);
         s.push('</td>');
     } else {
         // One-on-one debate comment
@@ -924,7 +909,7 @@ function make_rp(newDiv, entry)
             s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top>');
         s.push(`<b>${entry.name}</b><br>`);
-        s.push(entry.data.text);
+        s.push(entry.text);
         s.push('</td>');
         if (!image_on_left)
             s.push(`<td width=4px></td><td valign=top align=right><img class="rounded" src="${entry.image}"></td>`);
@@ -954,7 +939,7 @@ function store_ratings(entry)
 
 function add_node(entry)
 {
-    let newDiv = find_or_make_node_div(entry.id);
+    let newDiv = find_or_make_node_div(entry);
     if (!newDiv) {
         console.log(`Ignoring irrelevant update to ${entry.id}`);
         return;
@@ -964,19 +949,19 @@ function add_node(entry)
     store_ratings(entry);
 
     // Fill out the div content
-    if (entry.data.type === 'rp') {
+    if (entry.type === 'rp') {
         make_rp(newDiv, entry);
         if (entry.id == path) {
             newDiv.scrollIntoView();
         }
-    } else if (entry.data.type === 'pod') {
+    } else if (entry.type === 'pod') {
         make_pod(newDiv, entry);
-    } else if (entry.data.type === 'op') {
+    } else if (entry.type === 'op') {
         make_op(newDiv, entry);
-    } else if (entry.data.type === 'cat') {
+    } else if (entry.type === 'cat') {
         make_cat(newDiv, entry);
     } else {
-        let msg = `unrecognized entry type ${entry.data.type}`;
+        let msg = `unrecognized entry type ${entry.type}`;
         alert(msg);
         throw msg;
     }
@@ -990,13 +975,10 @@ function add_op(entry)
 
 function set_focus(id)
 {
-    lastdot = id.lastIndexOf('.');
-    if (parseInt(id.substr(lastdot + 1)) > 0) { // If the comment will appear somewhere else
-        let node = document.getElementById(`d.${id}`);
-        node.style.backgroundColor = '#ffff00';
-        setTimeout(function() { node.style.backgroundColor = ''; }, 400);
-        //node.scrollIntoView();
-    }
+    let node = document.getElementById(`d.${id}`);
+    node.style.backgroundColor = '#ffff00';
+    setTimeout(function() { node.style.backgroundColor = ''; }, 400);
+    //node.scrollIntoView();
 }
 
 function update_entry(entry)
@@ -1044,13 +1026,13 @@ function incoming(response)
         alert(`No updates in ${JSON.stringify(ob)}`);
     }
     for(entry of ob.updates) {
-        update_entry(entry);
+        update_entry(entry); // Receive new updates
     }
     rev = ob.rev;
     op_list = ob.ops;
     op_revs = ob.opr;
     if (ob.updates.length > 0) {
-        refresh_comments();
+        refresh_comments(); // Determine which comments to show or hide
     }
 }
 
@@ -1168,7 +1150,7 @@ function init()
     </div>
 </div>
 
-<div id='soil'></div>
+<div id='n.'></div>
 </td></tr></table>
 <br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br>

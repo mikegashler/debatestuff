@@ -1,18 +1,13 @@
 from typing import Mapping, Dict, Any, List, Tuple
+import cache
 import account
 from db import db
-
-session_cache: Dict[str, "Session"] = {}
 
 class Session():
     def __init__(self, id: str, account_ids: List[str], active_index: int) -> None:
         self.id = id
         self.account_ids = account_ids
         self.active_index = active_index
-        global session_cache
-        if len(session_cache) > 500:
-            session_cache = {} # Periodically flush the cache so it doesn't get bloated
-        session_cache[id] = self
 
     # If account_name is the empty string, this will switch to the first account with no password, creating one if necessary
     def switch_account(self, account_name: str) -> None:
@@ -34,28 +29,34 @@ class Session():
 
     def marshal(self) -> Mapping[str, Any]:
         return {
-            '_id': self.id,
             'accounts': self.account_ids,
             'active_index': self.active_index,
         }
 
     @staticmethod
-    def unmarshal(ob: Mapping[str, Any]) -> 'Session':
-        return Session(ob['_id'], ob['accounts'], ob['active_index'])
+    def unmarshal(id: str, ob: Mapping[str, Any]) -> 'Session':
+        return Session(id, ob['accounts'], ob['active_index'])
 
     def active_account(self) -> account.Account:
-        return account.find_account_by_id(self.account_ids[self.active_index])
+        return account.account_cache[self.account_ids[self.active_index]]
+
+def fetch_session(id: str) -> Session:
+    return Session.unmarshal(id, db.get_session(id))
+
+def store_session(id: str, sess: Session) -> None:
+    assert id == sess.id, 'mismatching ids'
+    db.put_session(id, sess.marshal())
+
+session_cache: cache.Cache[str,Session] = cache.Cache(300, fetch_session, store_session)
+
 
 def get_or_make_session(session_id: str) -> Session:
-    if session_id in session_cache:
-        return session_cache[session_id]
     try:
-        packet = db.get_session(session_id)
-        return Session.unmarshal(packet)
+        return session_cache[session_id]
     except KeyError:
         _account = account.make_starter_account()
         session = Session(session_id, [ _account.id ], 0)
-        db.put_session(session.marshal())
+        session_cache[session_id] = session
         # if len(sessions) == 1:
         #     session.accounts[0].admin = True
-    return session
+        return session

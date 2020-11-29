@@ -11,7 +11,7 @@ from http.cookies import SimpleCookie
 import re
 import posixpath
 
-COOKIE_LEN = 16
+COOKIE_LEN = 12
 
 def new_session_id() -> str:
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(COOKIE_LEN))
