@@ -443,11 +443,67 @@ function outgoing(payload)
     httpPost("feed_ajax.html", JSON.stringify(payload), incoming);
 }
 
+function show_react_div(id) {
+    let x = document.getElementById(`e.${id}`);
+    if (x.style.display === 'inline-block') {
+        x.style.display = 'none';
+    } else {
+        if (x.innerHTML.length == 0) {
+            s = [];
+            s.push('<table><tr>');
+            s.push('<td width=100 align=center><img src="emojis/appreciate.png"><br>Appreciate</td>');
+            s.push('<td width=80 align=center><img src="emojis/empathize.png"><br>Empathize</td>');
+            s.push('<td width=100 align=center><img src="emojis/commend.png"><br>Commend</td>');
+            s.push('<td width=100 align=center><img src="emojis/enjoy.png"><br>Enjoy</td>');
+            s.push('<td width=80 align=center><img src="emojis/like.png"><br>Like</td>');
+            s.push('<td width=100 align=center><img src="emojis/admire.png"><br>Admire</td>');
+            s.push('</tr></tr>')
+            s.push('<td width=100 align=center><img src="emojis/acknowledge.png"><br>Acknowledge</td>');
+            s.push('<td width=80 align=center><img src="emojis/understand.png"><br>Understand</td>');
+            s.push('<td width=100 align=center><img src="emojis/regard.png"><br>Regard</td>');
+            s.push('<td width=80 align=center><img src="emojis/agree.png"><br>Agree</td>');
+            s.push('<td width=80 align=center><img src="emojis/respect.png"><br>Respect</td>');
+            s.push('<td width=80 align=center><img src="emojis/esteem.png"><br>Esteem</td>');
+            s.push('</tr></table>')
+            x.innerHTML = s.join('');
+        }
+        x.style.display = 'inline-block';
+    }
+}
+
 function show_rate_div(id) {
     let x = document.getElementById(`m.${id}`);
     if (x.style.display === 'inline-block') {
         x.style.display = 'none';
     } else {
+        if (x.innerHTML.length == 0) {
+            s = [];
+            s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.');
+            s.push('<span class="tool_anchor"><span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of reasons that can withstand scrutiny.</span></span></span>');
+            s.push('<br>&nbsp;&nbsp;Rate the reasons presented to support them.<br>');
+            s.push('<table>');
+            for (let row = 0; row < 6; row++) {
+                s.push('<tr>');
+                for (let col = 0; col < 3; col++) {
+                    s.push('<td>');
+                    let i = 3 * row + col;
+                    s.push(`<input type="checkbox" id="m${i}_${id}">`);
+                    s.push('<span class="tool">');
+                    s.push(`<a class="${i < 4 ? "good" : "bad"}" onclick="rate_one('${id}',${i})" href="javascript:void(0);">`);
+                    s.push(`<b>${rating_choices[i]}</b>`);
+                    s.push('</a>');
+                    s.push(`<span class="tool_anchor"><span class="tooltip">${rating_descr[i]}</span></span>`);
+                    s.push('</span>');
+                    s.push('</td>');
+                }
+                s.push('</tr>');
+            }
+            s.push('</table>');
+            s.push(`<button type="button" onclick="submitRatings('${entry.id}')">Rate</button>`);
+            s.push(`&nbsp;<button type="button" onclick="closeRatings('${entry.id}')">Cancel</button>`);
+            s.push('<br><br></div><br><br>\n');
+            x.innerHTML = s.join('');
+        }
         x.style.display = 'inline-block';
     }
 }
@@ -457,6 +513,15 @@ function show_reply_div(id) {
     if (x.style.display === 'inline-block') {
         x.style.display = 'none';
     } else {
+        if (x.innerHTML.length == 0) {
+            s = [];
+            s.push(`<textarea id="t.${id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
+            s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
+            s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
+            s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
+            s.push('<br><br>\n');
+            x.innerHTML = s.join('');
+        }
         x.style.display = 'inline-block';
         let tb = document.getElementById(`t.${id}`);
         tb.focus();
@@ -752,7 +817,8 @@ function accept_challenge(pod_id)
 }
 
 // ID Prefixes:
-// d = node id
+// d = node
+// e = emojis
 // h = hint about rating
 // m = moderation div
 // n = nursery (div for child nodes)
@@ -765,6 +831,7 @@ function accept_challenge(pod_id)
 function add_rate_and_respond_links(s, entry, allow_reply)
 {
     s.push(`<div id='h.${entry.id}'></div>`);
+    s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">react</a><br>`);
     s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
     if (allow_reply) {
         s.push(`<a href="#javascript:void(0)" onclick="show_reply_div('${entry.id}')">reply</a><br>`);
@@ -772,49 +839,6 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     if (admin) {
         s.push(`<a href="#javascript:void(0)" onclick="del_node('${entry.id}')">delete</a><br>`);
     }
-}
-
-// s is an array of strings
-// entry is an object that describes the entry
-function add_moderation_div(s, entry)
-{
-    s.push(`<div class="hidden" id="m.${entry.id}">`);
-    s.push('<div class="bubble rate_color">&nbsp;&nbsp<span class="tool">Do not rate positions or claims.');
-    s.push('<span class="tool_anchor"><span class="tooltip">Because truth is not identified by popularity. It is found in the pursuit of reasons that can withstand scrutiny.</span></span></span>');
-    s.push('<br>&nbsp;&nbsp;Rate the reasons presented to support them.<br>');
-    s.push('<table>');
-    for (let row = 0; row < 6; row++) {
-        s.push('<tr>');
-        for (let col = 0; col < 3; col++) {
-            s.push('<td>');
-            let i = 3 * row + col;
-            s.push(`<input type="checkbox" id="m${i}_${entry.id}">`);
-            s.push('<span class="tool">');
-            s.push(`<a class="${i < 4 ? "good" : "bad"}" onclick="rate_one('${entry.id}',${i})" href="javascript:void(0);">`);
-            s.push(`<b>${rating_choices[i]}</b>`);
-            s.push('</a>');
-            s.push(`<span class="tool_anchor"><span class="tooltip">${rating_descr[i]}</span></span>`);
-            s.push('</span>');
-            s.push('</td>');
-        }
-        s.push('</tr>');
-    }
-    s.push('</table>');
-    s.push(`<button type="button" onclick="submitRatings('${entry.id}')">Rate</button>`);
-    s.push(`&nbsp;<button type="button" onclick="closeRatings('${entry.id}')">Cancel</button>`);
-    s.push('<br><br></div><br><br></div>\n');
-}
-
-// s is an array of strings
-// entry is an object that describes the entry
-function add_response_div(s, entry)
-{
-    s.push(`<div class="hidden indent" id="r.${entry.id}">`);
-    s.push(`<textarea id="t.${entry.id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${entry.id}')"></textarea><br>`);
-    s.push(`<button type="button" onclick="submitReply('${entry.id}')">Post</button>`);
-    s.push(`&nbsp;<button type="button" onclick="closeReply('${entry.id}')">Cancel</button>`);
-    s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${entry.id}"></span>`);
-    s.push('<br><br></div>\n');
 }
 
 // newDiv is a div to hold the content this function generates.
@@ -849,7 +873,8 @@ function make_op(newDiv, entry)
     add_rate_and_respond_links(s, entry, false);
     s.push('</td>');
     s.push('</tr></table>\n');
-    add_moderation_div(s, entry);
+    s.push(`<div class="hidden" id="e.${entry.id}"></div>\n`);
+    s.push(`<div class="hidden" id="m.${entry.id}"></div>\n`);
     s.push(`<div id="n.${entry.id}"></div>\n`);
     newDiv.innerHTML = s.join('');
 }
@@ -919,10 +944,11 @@ function make_rp(newDiv, entry)
     s.push('</td><td valign=top>');
     add_rate_and_respond_links(s, entry, open_pod);
     s.push('</td></tr></table>\n');
-    add_moderation_div(s, entry)
+    s.push(`<div class="hidden" id="e.${entry.id}"></div>\n`);
+    s.push(`<div class="hidden" id="m.${entry.id}"></div>\n`);
     s.push(`<div class="indent" id="n.${entry.id}"></div>\n`);
     if (open_pod) {
-        add_response_div(s, entry)
+        s.push(`<div class="hidden indent" id="r.${entry.id}"></div>\n`);
     }
     newDiv.innerHTML = s.join('');
 }
