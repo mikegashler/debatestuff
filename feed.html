@@ -443,6 +443,21 @@ function outgoing(payload)
     httpPost("feed_ajax.html", JSON.stringify(payload), incoming);
 }
 
+let emojis = [
+    'Appreciate',
+    'Empathize',
+    'Commend',
+    'Enjoy',
+    'Like',
+    'Admire',
+    'Acknowledge',
+    'Understand',
+    'Regard',
+    'Agree',
+    'Respect',
+    'Esteem',
+];
+
 function show_react_div(id) {
     let x = document.getElementById(`e.${id}`);
     if (x.style.display === 'inline-block') {
@@ -451,20 +466,16 @@ function show_react_div(id) {
         if (x.innerHTML.length == 0) {
             s = [];
             s.push('<table><tr>');
-            s.push('<td width=100 align=center><img src="emojis/appreciate.png"><br>Appreciate</td>');
-            s.push('<td width=80 align=center><img src="emojis/empathize.png"><br>Empathize</td>');
-            s.push('<td width=100 align=center><img src="emojis/commend.png"><br>Commend</td>');
-            s.push('<td width=100 align=center><img src="emojis/enjoy.png"><br>Enjoy</td>');
-            s.push('<td width=80 align=center><img src="emojis/like.png"><br>Like</td>');
-            s.push('<td width=100 align=center><img src="emojis/admire.png"><br>Admire</td>');
+            for (let i = 0; i < 6; i++) {
+                s.push(`<td width=100 align=center><a href="#javascript:void(0)" onclick="pick_emoji('${id}', ${i})"><img src="emojis/${emojis[i].toLowerCase()}.png"><br>${emojis[i]}</a></td>`);
+            }
             s.push('</tr></tr>')
-            s.push('<td width=100 align=center><img src="emojis/acknowledge.png"><br>Acknowledge</td>');
-            s.push('<td width=80 align=center><img src="emojis/understand.png"><br>Understand</td>');
-            s.push('<td width=100 align=center><img src="emojis/regard.png"><br>Regard</td>');
-            s.push('<td width=80 align=center><img src="emojis/agree.png"><br>Agree</td>');
-            s.push('<td width=80 align=center><img src="emojis/respect.png"><br>Respect</td>');
-            s.push('<td width=80 align=center><img src="emojis/esteem.png"><br>Esteem</td>');
-            s.push('</tr></table>')
+            for (let i = 6; i < 12; i++) {
+                s.push(`<td width=100 align=center><a href="#javascript:void(0)" onclick="pick_emoji('${id}', ${i})"><img src="emojis/${emojis[i].toLowerCase()}.png"><br>${emojis[i]}</a></td>`);
+            }
+            s.push('</tr></table>');
+            s.push(`<button type="button" onclick="closeReact('${id}')">Cancel</button>`);
+            s.push('<br><br>');
             x.innerHTML = s.join('');
         }
         x.style.display = 'inline-block';
@@ -499,8 +510,8 @@ function show_rate_div(id) {
                 s.push('</tr>');
             }
             s.push('</table>');
-            s.push(`<button type="button" onclick="submitRatings('${entry.id}')">Rate</button>`);
-            s.push(`&nbsp;<button type="button" onclick="closeRatings('${entry.id}')">Cancel</button>`);
+            s.push(`<button type="button" onclick="submitRatings('${id}')">Rate</button>`);
+            s.push(`&nbsp;<button type="button" onclick="closeRatings('${id}')">Cancel</button>`);
             s.push('<br><br></div><br><br>\n');
             x.innerHTML = s.join('');
         }
@@ -647,9 +658,19 @@ function refresh_comments()
     } // ...for each OP
 }
 
+function closeReact(id)
+{
+    let ratingsDiv = document.getElementById(`e.${id}`);
+    if (!ratingsDiv)
+        console.log(`Error: Missing expected element e.${id}`);
+    ratingsDiv.style.display = 'none';
+}
+
 function closeRatings(id)
 {
     let ratingsDiv = document.getElementById(`m.${id}`);
+    if (!ratingsDiv)
+        console.log(`Error: Missing expected element m.${id}`);
     ratingsDiv.style.display = 'none';
 }
 
@@ -830,12 +851,33 @@ function accept_challenge(pod_id)
 // entry is an object that describes the entry
 function add_rate_and_respond_links(s, entry, allow_reply)
 {
+    // Hint
+    s.push('<span class="tool">');
     s.push(`<div id='h.${entry.id}'></div>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">In unbiased mode, this is the most common rating. In biased mode, it is our prediction of your opinion</span></span>`);
+    s.push('</span>');
+
+    // React
+    s.push('<span class="tool">');
     s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">react</a><br>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">Express some emotion to the author</span></span>`);
+    s.push('</span>');
+
+    // Rate
+    s.push('<span class="tool">');
     s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">Help us determine which posts to recommend</span></span>`);
+    s.push('</span>');
+
+    // Reply
     if (allow_reply) {
+        s.push('<span class="tool">');
         s.push(`<a href="#javascript:void(0)" onclick="show_reply_div('${entry.id}')">reply</a><br>`);
+        s.push(`<span class="tool_anchor"><span class="tooltip">Give a verbal rebuttal</span></span>`);
+        s.push('</span>');
     }
+
+    // Delete
     if (admin) {
         s.push(`<a href="#javascript:void(0)" onclick="del_node('${entry.id}')">delete</a><br>`);
     }
@@ -846,10 +888,9 @@ function add_rate_and_respond_links(s, entry, allow_reply)
 function make_cat(newDiv, entry)
 {
     let s = [];
-    let count = (entry.id.length == 0 ? 0 : entry.id.split(".").length);
-    s.push(`<img src='spacer.png' width=${40*count}px height=1px>`);
+    s.push(`<img src='spacer.png' width=${40*entry.dep}px height=1px>`);
     s.push('<big><big>');
-    if (count > 0) {
+    if (entry.dep > 0) {
         s.push('└─');
     }
     s.push(`<a href='?path=${entry.id}'>${entry.text}</a>\n`);

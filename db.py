@@ -6,18 +6,12 @@ from indexable_dict import IndexableDict
 
 def bootstrap() -> None:
     import posts
-    root_id = '000000000000'
-    root = posts.post_cache.add(root_id, posts.Post(root_id, '', '', 'cat', 'Everything', ''))
-    c1 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Politics', '')
-    posts.post_cache.add(c1.id, c1)
-    c2 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'STEM', '')
-    posts.post_cache.add(c2.id, c2)
-    c3 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Entertainment', '')
-    posts.post_cache.add(c3.id, c3)
-    c4 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Theology', '')
-    posts.post_cache.add(c4.id, c4)
-    c5 = posts.Post(posts.new_post_id(), root.id, '', 'cat', 'Miscellaneous', '')
-    posts.post_cache.add(c5.id, c5)
+    root = posts.new_post('000000000000', '', 'cat', 'Everything', '')
+    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Politics', '')
+    posts.new_post(posts.new_post_id(), root.id, 'cat', 'STEM', '')
+    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Entertainment', '')
+    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Theology', '')
+    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Miscellaneous', '')
 
 def flush_caches() -> None:
     import account
@@ -144,7 +138,7 @@ class FlatFile():
     def get_history(self, id: str) -> Mapping[str, Any]:
         return self.history[id]
 
-    # Consumes an account id, a post id, and a list of ratings
+    # Consumes an account id, a post id, and ratings for the pair
     def put_rating(self, user: str, item: str, vals: List[float]) -> None:
         self.ratings[f'{user},{item}'] = vals
 
@@ -154,7 +148,7 @@ class FlatFile():
     #         self.put_rating(rating[0], rating[1], rating[2])
 
     # Consumes an account id and a post id
-    # Returns a list of ratings
+    # Returns ratings for a user-item (account-post) pair
     def get_rating(self, user: str, item: str) -> List[float]:
         return self.ratings[f'{user},{item}']
 
@@ -311,7 +305,7 @@ class Mongo():
             raise KeyError(id)
         return doc
 
-    # Consumes an account id, a post id, and a list of ratings
+    # Consumes an account id, a post id, and ratings for the pair
     def put_rating(self, user_id: str, item_id: str, vals: List[float]) -> None:
         self.ratings.replace_one(
             {'_id': f'{user_id},{item_id}'},
@@ -342,7 +336,7 @@ class Mongo():
     #     self.ratings.bulk_write(operations)
 
     # Consumes an account id and a post id
-    # Returns a list of ratings
+    # Returns ratings for a user-item (account-post) pair
     def get_rating(self, user: str, item: str) -> List[float]:
         doc: Optional[Mapping[str, Any]] = self.ratings.find_one({'user': user, 'item': item})
         if doc is None:

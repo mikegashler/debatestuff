@@ -131,14 +131,14 @@ def summarize_post(post_id: str, n: int) -> str:
     return summary
 
 # Recursively adds a whole branch of categories to the updates
-def add_cat_updates(updates: List[Dict[str, Any]], post: posts.Post, account_id: str) -> None:
+def add_cat_updates(updates: List[Dict[str, Any]], post: posts.Post, account_id: str, depth: int) -> None:
     import posts
     for c in post.children:
         child_post = posts.post_cache[c]
         if not child_post.type == 'cat':
             break
-        updates.append(child_post.encode_for_client(account_id))
-        add_cat_updates(updates, child_post, account_id)
+        updates.append(child_post.encode_for_client(account_id, depth))
+        add_cat_updates(updates, child_post, account_id, depth + 1)
 
 # Adds post updates the client needs for its tree
 def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any], account_id: str) -> Tuple[int, List[str], List[int]]:
@@ -150,6 +150,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
     assert len(op_revs) == len(op_list)
 
     # Find the ancestor category (and pick up the op if we don't have any)
+    depth = -1 # depth above the OP
     category = posts.post_cache[path]
     while category.type != 'cat':
         if len(op_list) == 0 and category.type == 'op':
@@ -157,9 +158,11 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
             op_revs.append(0)
         assert len(category.parent_id) > 0
         category = posts.post_cache[category.parent_id]
+        depth += 1
 
-    # Do base updates (the stack from the root to the path node)
+    # Do platform updates
     if rev < 1:
+        # Add the stack from the root to the path node
         stack: List[posts.Post] = []
         n = category
         while True:
@@ -169,13 +172,17 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
             else:
                 break
         stack.reverse()
-        for node in stack:
-            updates.append(node.encode_for_client(account_id))
+        for i, node in enumerate(stack):
+            updates.append(node.encode_for_client(account_id, i))
+
+        # Add the sub-branch of categories
+        if len(category.children) > 0 and posts.post_cache[category.children[0]].type == 'cat':
+            add_cat_updates(updates, category, account_id, len(stack))
+
+        # Add the OPs in the op_list
         for id in op_list:
             post = posts.post_cache[id]
-            updates.append(post.encode_for_client(account_id))
-        if len(category.children) > 0 and posts.post_cache[category.children[0]].type == 'cat':
-            add_cat_updates(updates, category, account_id)
+            updates.append(post.encode_for_client(account_id, 0))
         rev = 1
 
     # Do OP updates
@@ -193,7 +200,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
             while op_revs[i] < op_hist.revs():
                 post_id = op_hist.get_rev(op_revs[i])
                 post = posts.post_cache[post_id]
-                updates.append(post.encode_for_client(account_id))
+                updates.append(post.encode_for_client(account_id, depth))
                 op_revs[i] += 1
                 patience -= 1
                 if patience == 0:
@@ -213,14 +220,17 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             pass
         elif act == 'rate': # Rate a comment
             post = posts.post_cache[incoming_packet['id']]
-            post.rate(incoming_packet['ratings']) # unbiased
-            posts.post_cache.set_modified(post.id)
-            rec.engine.rate(_account.id, incoming_packet['id'], incoming_packet['ratings']) # biased
-            updates.append({
-                'act': 'rate',
-                'id': incoming_packet['id'],
-            })
-            if len(post.account_id) > 0 and post.account_id != _account.id:
+            if post.account_id == _account.id:
+                updates.append({
+                    'act': 'alert',
+                    'msg': 'Sorry, rating your own posts is not allowed',
+                })
+            else:
+                rec.engine.rate(_account.id, incoming_packet['id'], incoming_packet['ratings'])
+                updates.append({
+                    'act': 'rate',
+                    'id': incoming_packet['id'],
+                })
                 notifs.notify(post.account_id, 'rate', post.id, '')
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
@@ -234,7 +244,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             text = format_comment(incoming_packet['text'], 1000)
             par = posts.post_cache[incoming_packet['parid']]
             new_post_id = posts.new_post_id()
-            child = posts.post_cache.add(new_post_id, posts.Post(new_post_id, incoming_packet['parid'], par.op_id, 'rp', text, _account.id))
+            child = posts.new_post(new_post_id, incoming_packet['parid'], 'rp', text, _account.id)
             _account.comment_count += 1
             updates.append({
                 'act': 'focus',
@@ -269,10 +279,10 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             assert cat.type == 'cat', 'Not a category'
             assert len(cat.children) == 0 or posts.post_cache[cat.children[0]].type == 'op', 'Please choose a sub-category for your debate'
             new_op_id = posts.new_post_id()
-            op = posts.post_cache.add(new_op_id, posts.Post(new_op_id, cat.id, '', 'op', text, _account.id))
+            op = posts.new_post(new_op_id, cat.id, 'op', text, _account.id)
             if incoming_packet['mode'] == 'open':
                 new_pod_id = posts.new_post_id()
-                posts.post_cache.add(new_pod_id, posts.Post(new_pod_id, new_op_id, new_op_id, 'pod', 'Open discussion', _account.id))
+                posts.new_post(new_pod_id, new_op_id, 'pod', 'Open discussion', _account.id)
             else:
                 whitelist: List[str] = [_account.id]
                 if incoming_packet['mode'] == 'name':
@@ -281,10 +291,10 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     whitelist.append(opponent_account.id)
                     notifs.notify(opponent_account.id, 'chal', op.id, _account.id)
                 new_pod_id = posts.new_post_id()
-                new_pod = posts.post_cache.add(new_pod_id, posts.Post(new_pod_id, new_op_id, new_op_id, 'pod', 'One-on-one debate', _account.id))
+                new_pod = posts.new_post(new_pod_id, new_op_id, 'pod', 'One-on-one debate', _account.id)
                 new_pod.wl = whitelist
                 new_pod_id = posts.new_post_id()
-                posts.post_cache.add(new_pod_id, posts.Post(new_pod_id, new_op_id, new_op_id, 'pod', 'Peanut gallery', _account.id))
+                posts.new_post(new_pod_id, new_op_id, 'pod', 'Peanut gallery', _account.id)
             summary = text[:50] + '...' if len(text) > 50 else ''
             updates.append({
                 'act': 'pushop',

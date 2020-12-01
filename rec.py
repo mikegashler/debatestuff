@@ -136,12 +136,28 @@ class Engine:
         rating_freq = ob['rating_freq']
         rating_count = ob['rating_count']
 
-    def rate(self, user_id: str, item_id: str, ratings: List[float]) -> None:
-        db.put_rating(user_id, item_id, ratings)
+    def rate(self, user_id: str, item_id: str, rating: List[float]) -> None:
+        # Update the unbiased rating counters for this post
+        import posts
+        post = posts.post_cache[item_id]
+        try:
+            old_rating = db.get_rating(user_id, item_id)
+            post.undo_rating(old_rating)
+        except KeyError:
+            pass
+        post.add_rating(rating)
+        posts.post_cache.set_modified(item_id)
+
+        # Add the rating to the database of samples for training the biased recommender system
+        db.put_rating(user_id, item_id, rating)
+
+        # Ensure profiles exist for the user and item
         if not user_id in self.user_profiles:
             self.user_profiles[user_id] = Profile(user_id)
         if not item_id in self.item_profiles:
             self.item_profiles[item_id] = Profile(item_id)
+
+        # Do a little training
         for i in range(5):
             self.train()
 
