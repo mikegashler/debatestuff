@@ -58,7 +58,7 @@
         }
 
         img.rounded {
-            border-radius: 7px;
+            border-radius: 9px;
         }
     </style>
     <script type="text/javascript">
@@ -177,7 +177,7 @@ function init()
                 continue;
             s.push('<tr><td>');
             s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
-            s.push(`<img src='${account_images[i]}'>`);
+            s.push(`<img class="rounded" src='${account_images[i]}'>`);
             s.push('</a></td><td>');
             s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
             s.push(`${account_names[i]}</a></td></tr>`);
@@ -267,6 +267,7 @@ function submit_pw_change()
 </div>
 
 <br>
+<table cellpadding=40><tr><td>
 <table width="100%"><tr><td>
         <h1>Your account</h1>
     </td>
@@ -277,11 +278,13 @@ function submit_pw_change()
     </td>
 </tr></table>
 <p>
-    (Note: Do not give us personally identifying information.
-    This is not a bank account. It is just a free web service.)
+    (<b>Warning:</b> Do not give us personally identifying information.
+    We use A.I.. You don't want it showing up at your house.
+    Seriously, though, pseudonymns are cool here. This is a free web service,
+    not a bank account or a government program. Don't be stupid with personal information. )
 </p>
 <br>
-<table><tr><td>Your profile picture: <img id='profile_pic' onclick='on_click_profile_pic()'></td>
+<table><tr><td>Your profile picture: <img class="rounded" id='profile_pic' onclick='on_click_profile_pic()'></td>
 <td valign='bottom'><form enctype="multipart/form-data" method="post" action="receive_image.html" id="profile_pic_form">
     <br>
     <input id="browse_button" name="file" type="file" onchange="submit_profile_pic_form()">
@@ -313,6 +316,7 @@ Your user name: <input type='text' id='username' onkeydown='on_name_change()' on
 
 
 <br><br><br><br>
+</td></tr></table>
 </td></tr></table>
 <br><br><br><br><br><br><br><br>
 

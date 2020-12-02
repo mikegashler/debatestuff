@@ -26,6 +26,12 @@ def store_notif_in(id: str, notif_in: NotifIn) -> None:
 
 notif_in_cache: cache.Cache[str,NotifIn] = cache.Cache(100, fetch_notif_in, store_notif_in)
 
+def get_or_make_notif_in(account_id: str) -> NotifIn:
+    try:
+        return notif_in_cache[account_id]
+    except KeyError:
+        return notif_in_cache.add(account_id, NotifIn())
+
 
 
 

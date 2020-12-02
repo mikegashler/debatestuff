@@ -90,7 +90,7 @@
         }
 
         img.rounded {
-            border-radius: 7px;
+            border-radius: 9px;
         }
 
         .tool {
@@ -128,12 +128,12 @@ let op_revs = [];
 
 
 let tag_lines = [
-    "An anti-social network.<br>You learn more from foes than friends.",
+    "An anti-social network.<br>Friends are lame.<br>Foes teach you more.",
     "Social media exists to<br>validate your stupid ideas.<br>We exist to crush them.",
-    "Got an opinion you can't back up?<br>Great, keep it to yourself.",
-    "Hate criticism and love validation?<br>Go away. You're not welcome here.",
-    "Love caps lock? Hate grammar Nazis?<br>Maybe Facebook is for you.",
-    "We're not here to spread alleged facts.<br>We discuss reasons.",
+    "Got an opinion you can't back up?<br>Great!<br>Keep it to yourself.",
+    "Hate criticism and love validation?<br>Go away.<br>You're not welcome here.",
+    "Love caps lock?<br>Hate grammar Nazis?<br>Maybe Facebook is for you.",
+    "We're not here<br>to spread alleged facts.<br>We discuss reasons.",
     "As the pen is to the sword,<br>so debate is to war.",
 ];
 let unbiased_indexes = {};
@@ -526,11 +526,14 @@ function show_reply_div(id) {
     } else {
         if (x.innerHTML.length == 0) {
             s = [];
+            s.push('<table><tr><td valign="top">');
+            s.push(`<img class="rounded" src="${account_pic}">`);
+            s.push('</td><td>');
             s.push(`<textarea id="t.${id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
             s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
             s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
             s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
-            s.push('<br><br>\n');
+            s.push('</td></tr></table><br><br>\n');
             x.innerHTML = s.join('');
         }
         x.style.display = 'inline-block';
@@ -558,7 +561,7 @@ function find_or_make_node_div(entry)
 
 function node_comparator(a, b)
 {
-    isbiased = document.getElementById('isbiased').checked;
+    isbiased = document.getElementById('ai_on').checked;
     if (isbiased) {
         return biased_scores[a] > biased_scores[b];
     } else {
@@ -570,7 +573,7 @@ function update_hint(id)
 {
     let hint_div = document.getElementById(`h.${id}`);
     if (hint_div) {
-        isbiased = document.getElementById('isbiased').checked;
+        isbiased = document.getElementById('ai_on').checked;
         let index = (isbiased ? biased_indexes[id] : unbiased_indexes[id]);
         let score = (isbiased ? biased_scores[id] : unbiased_scores[id]);
         if (score === undefined) {
@@ -594,11 +597,12 @@ function update_hint(id)
 // Update the rating hints.
 function refresh_comments()
 {
+    alert('refreshing comments');
     thresh = parseInt(document.getElementById('thresh').innerHTML);
     if(!(thresh > 0 && thresh < 1000)) {
         alert('problem with thresh');
     }
-    isbiased = document.getElementById('isbiased').checked;
+    isbiased = document.getElementById('ai_on').checked;
     let q = new PriorityQueue(node_comparator);
     for (let i = 0; i < op_list.length; i++) { // For each OP...
         update_hint(op_list[i]);
@@ -664,6 +668,16 @@ function closeReact(id)
     if (!ratingsDiv)
         console.log(`Error: Missing expected element e.${id}`);
     ratingsDiv.style.display = 'none';
+}
+
+function pick_emoji(id, index)
+{
+    outgoing({
+        act: 'react',
+        id: id,
+        emo: index,
+    });
+    closeReact(id);
 }
 
 function closeRatings(id)
@@ -791,6 +805,23 @@ function update_notifications(pos, msgs)
             s.push(' challenged you to debate, ');
         else if (msg.type === 'acc')
             s.push(' accepted your debate challenge, ');
+        else if (msg.type.substr(0, 6) === 'react_') {
+            let emo = parseInt(msg.type.substr(6));
+            if (emo === 0) s.push(' appreciated');
+            else if (emo === 1) s.push(' empathized with');
+            else if (emo === 2) s.push(' commended');
+            else if (emo === 3) s.push(' enjoyed');
+            else if (emo === 4) s.push(' liked');
+            else if (emo === 5) s.push(' admired');
+            else if (emo === 6) s.push(' acknowledged');
+            else if (emo === 7) s.push(' understood');
+            else if (emo === 8) s.push(' regarded');
+            else if (emo === 9) s.push(' agreed with');
+            else if (emo === 10) s.push('respected');
+            else if (emo === 11) s.push(' esteemed');
+            else console.log(`invalid emo index: ${emo}`);
+            s.push(' your post, ');
+        }
         else
             console.log(`Error, unrecognized notification ${msg.type}`);
         s.push(`<a href='?path=${msg.id}'>${msg.summ}</a>`);
@@ -800,6 +831,18 @@ function update_notifications(pos, msgs)
     s.push('<br><button type="button" onclick="closeNotifs()">Close</button>');
     s.push('</div>');
     el.innerHTML = s.join('');
+}
+
+function ai_on()
+{
+    el = document.getElementById('ai_on');
+    el.checked = true;
+}
+
+function ai_off()
+{
+    el = document.getElementById('ai_off');
+    el.checked = true;
 }
 
 function closeCreateMenu()
@@ -857,23 +900,25 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     s.push(`<span class="tool_anchor"><span class="tooltip">In unbiased mode, this is the most common rating. In biased mode, it is our prediction of your opinion</span></span>`);
     s.push('</span>');
 
-    // React
-    s.push('<span class="tool">');
-    s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">react</a><br>`);
-    s.push(`<span class="tool_anchor"><span class="tooltip">Express some emotion to the author</span></span>`);
-    s.push('</span>');
+    if (entry.name !== account_name) {
+        // React
+        s.push('<span class="tool">');
+        s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">react</a><br>`);
+        s.push(`<span class="tool_anchor"><span class="tooltip">Express a positive emotion for the author. (The author will be notified about your reaction. Our A.I. will not be informed.)</span></span>`);
+        s.push('</span>');
 
-    // Rate
-    s.push('<span class="tool">');
-    s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
-    s.push(`<span class="tool_anchor"><span class="tooltip">Help us determine which posts to recommend</span></span>`);
-    s.push('</span>');
+        // Rate
+        s.push('<span class="tool">');
+        s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
+        s.push(`<span class="tool_anchor"><span class="tooltip">Rate this post to help us determine which ones to show. (Our A.I. will learn from your ratings. The author will not be informed who rated the post.)</span></span>`);
+        s.push('</span>');
+    }
 
     // Reply
     if (allow_reply) {
         s.push('<span class="tool">');
         s.push(`<a href="#javascript:void(0)" onclick="show_reply_div('${entry.id}')">reply</a><br>`);
-        s.push(`<span class="tool_anchor"><span class="tooltip">Give a verbal rebuttal</span></span>`);
+        s.push(`<span class="tool_anchor"><span class="tooltip">Make a verbal response</span></span>`);
         s.push('</span>');
     }
 
@@ -932,9 +977,13 @@ function make_pod(newDiv, entry)
     s.push(`<div class="indent" id="n.${entry.id}"></div>\n`);
     if (entry.ro === undefined) {
         s.push('<div class="indent">');
+        s.push('<table><tr><td valign="top">');
+        s.push(`<img class="rounded" src="${account_pic}">`);
+        s.push('</td><td>');
         s.push(`<textarea id="t.${entry.id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${entry.id}')"></textarea><br>`);
         s.push(`<button type="button" onclick="submitReply('${entry.id}')">Post</button>`);
-        s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${entry.id}"></span></div>`);
+        s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${entry.id}"></span>`);
+        s.push('</td></tr></table></div>');
         s.push('<br><br>\n');
     } else {
         if (entry.ro == 1) {
@@ -1052,24 +1101,31 @@ function update_entry(entry)
 {
     if (entry.act === 'add') {
         add_node(entry);
+        return true;
     } else if (entry.act === 'focus') {
         let id = entry.id;
         setTimeout(function() { set_focus(id); }, 200); // a little delay b/c the new comment may not be added yet
+        return false;
     } else if (entry.act === 'rate') {
         store_ratings(entry);
+        return true;
     } else if (entry.act === 'pushop') { // server wants to push an OP on us. (It's probably a new OP we just requested to have created.)
         add_op(entry);
         init();
+        return true;
     } else if (entry.act === 'alert') { // Display a message from the server
         alert(entry.msg);
+        return false;
     } else if (entry.act === 'notifs') { // Notifications
         update_notifications(entry.pos, entry.msgs);
+        return false;
     } else if (entry.act === 'nc') {
         let el = document.getElementById('notif_link');
         if (entry.val === 0)
             el.innerHTML = "Notifications";
         else
-            el.innerHTML = `Notifications(${entry.val})`;
+            el.innerHTML = `Notifications&nbsp;(${entry.val})`;
+        return false;
     } else {
         let msg = `unrecognized entry action ${entry.act}`;
         alert(msg);
@@ -1092,14 +1148,16 @@ function incoming(response)
     if (ob.updates === undefined) {
         alert(`No updates in ${JSON.stringify(ob)}`);
     }
+    let changed_posts = false;
     for(entry of ob.updates) {
-        update_entry(entry); // Receive new updates
+        if(update_entry(entry)) // Receive new updates
+            changed_posts = true;
     }
     rev = ob.rev;
     op_list = ob.ops;
     op_revs = ob.opr;
-    if (ob.updates.length > 0) {
-        refresh_comments(); // Determine which comments to show or hide
+    if (changed_posts) {
+        refresh_comments(); // Determine which comments to show or hide, and add rating information
     }
 }
 
@@ -1145,10 +1203,22 @@ function init()
     let tagline = document.getElementById('tagline');
     tagline.innerHTML = tag_lines[Math.floor(Math.random() * tag_lines.length)];
 
+    // Show the account link
+    let account_name_span = document.getElementById('account_name');
+    account_name_span.innerHTML = `<b>${account_name}</b>`;
+    let account_pic_span = document.getElementById('account_pic');
+    account_pic_span.innerHTML = `<img class="rounded" src="${account_pic}">`;
+
     // Show or hide the 'new debate' link
     if (allow_new_debate) {
         let new_debate_span = document.getElementById('new_debate');
         new_debate_span.style.display = 'inline-block';
+    }
+
+    // Show or hide the ai on/off controls
+    if (rating_count > 10) {
+        let ai_switch = document.getElementById('ai_switch');
+        ai_switch.style.display = 'inline-block';
     }
 
     // Pull the content
@@ -1166,31 +1236,50 @@ function init()
 <table bgcolor=#dddddd width=800 align=center><tr><td>
 
 <div class="header">
-    <table><tr>
+    <table width="100%"><tr>
         <td width=330>
             <big><big><big><big>DebateStuff.com</big></big></big></big><br>
             <div id='tagline'></div>
         </td>
         <td>
-            <span id='new_debate' class='hidden'><a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
-            &nbsp;&nbsp;&nbsp;</span>
-            <a id="notif_link" onclick="showNotifications()" href="javascript:void(0);">Notifications</a>
-            &nbsp;&nbsp;&nbsp;
-            <a href="handbook.html">Handbook</a>
-            &nbsp;&nbsp;&nbsp;
-            <a href="account.html">Account</a>
+            <table width="100%">
+                <tr>
+                    <td align='right'><a href="account.html"><span id="account_name"></span></a></td>
+                    <td valign='top' rowspan=2><a href="account.html"><span id="account_pic"></span></a></td>
+                </tr>
+                <tr>
+                    <td>
+                        <span id='new_debate' class='hidden'><a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
+                        &nbsp;&nbsp;&nbsp;</span>
+                        <a href="handbook.html">Handbook</a>
+                        &nbsp;&nbsp;&nbsp;
+                        <a id="notif_link" onclick="showNotifications()" href="javascript:void(0);">Notifications</a>
+                    </td>
+                </tr>
+            </table>
             <br>
-            <table cellpadding=10><tr>
+            <table><tr>
+                <td align="center">
+                    <div id="ai_switch" class="hidden">
+                        A.I.:<br>
+                        <span class="tool">
+                            <input type="radio" id="ai_off" name="isbiased" onchange="on_change_biased();" checked>
+                            <span onclick="ai_off()" style="cursor: pointer;">Off</span>
+                            <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>off</b>, we show the top comments according to the overall community ratings.<br><br>(Our A.I. will still learn from your ratings, if you do any, but we won't use the A.I. to decide which posts to show you.)</span></span>
+                        </span>
+                        <span class="tool">
+                            <input type="radio" id="ai_on" name="isbiased" onchange="on_change_biased();">
+                            <span onclick="ai_on()" style="cursor: pointer;">On</span>
+                            <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>on</b>, we show the comments that our A.I. predicts you would rate most highly.<br><br>(Don't be scared. He's a nice A.I. who doesn't watch you when you leave our site. And he doesn't watch you while you sleep at night either--that would be creepy.)</span></span>
+                        </span>
+                    </div>
+                </td>
                 <td>
-                    &nbsp;&nbsp;&nbsp;&nbsp;
-                    <input type="radio" name="isbiased" onchange="on_change_biased();" checked>Unbiased
-                    &nbsp;&nbsp;&nbsp;
-                    <input type="radio" id="isbiased" name="isbiased" onchange="on_change_biased();">Biased<br>
                     <script language="JavaScript">myslider = new Slider('slider_bg.png', 321, 22, 'slider_tab.png', 19, 20, 25, on_slider_change);</script>
                     &nbsp;&nbsp;&nbsp;&nbsp;Show the top <span id="thresh">25</span> comments<br>
                 </td>
             </tr></table>
-    </td>
+        </td>
     </tr></table>
 
     <div id='notifications' class='hidden'>
@@ -1225,7 +1314,7 @@ function init()
 
 <script type="text/javascript">
 init();
-let timer = setInterval(function() { request_updates(); }, 2000);
+let timer = setInterval(function() { request_updates(); }, 5000);
 </script>
 
 </body></html>

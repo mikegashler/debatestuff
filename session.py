@@ -11,21 +11,25 @@ class Session():
 
     # If account_name is the empty string, this will switch to the first account with no password, creating one if necessary
     def switch_account(self, account_name: str) -> None:
-        pass
-        # if len(account_name) == 0:
-        #     for i in range(len(self.accounts)):
-        #         if len(self.accounts[i].password) == 0:
-        #             self.active_account = self.accounts[i]
-        #             return
-        #     no_password_account = account.make_starter_account()
-        #     self.accounts.append(no_password_account)
-        #     self.active_account = no_password_account
-        # else:
-        #     for i in range(len(self.account_ids)):
-        #         if self.accounts[i].name == account_name:
-        #             self.active_account = self.accounts[i]
-        #             return
-        #     raise ValueError('No account named {account_name}')
+        session_cache.set_modified(self.id)
+        if len(account_name) == 0: # Log out
+            for i in range(len(self.account_ids)):
+                acc_id = self.account_ids[i]
+                acc = account.account_cache[acc_id]
+                if len(acc.password) == 0:
+                    assert self.active_account != i, 'Log out should not be an option for accounts with no password'
+                    self.active_index = i
+                    return
+            no_password_account = account.make_starter_account()
+            self.active_index = len(self.account_ids)
+            self.account_ids.append(no_password_account.id)
+        else:
+            acc = account.find_account_by_name(account_name)
+            if acc.id in self.account_ids:
+                self.active_index = self.account_ids.index(acc.id)
+            else:
+                self.active_index = len(self.account_ids)
+                self.account_ids.append(acc.id)
 
     def marshal(self) -> Mapping[str, Any]:
         return {

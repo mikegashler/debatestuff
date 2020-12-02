@@ -49,6 +49,7 @@ class Account():
         self.image = image
         self.admin = False
         self.comment_count = 0
+        self.rating_count = 0
 
     def marshal(self) -> Mapping[str, Any]:
         packet = {
@@ -56,6 +57,7 @@ class Account():
             'pw': self.password,
             'image': self.image,
             'coms': self.comment_count,
+            'rats': self.rating_count,
             'admin': self.admin,
         }
         return packet
@@ -65,6 +67,7 @@ class Account():
         account = Account(id, ob['name'], ob['image'])
         account.password = ob['pw']
         account.comment_count = ob['coms']
+        account.rating_count = ob['rats']
         account.admin = ob['admin']
         return account
 
@@ -78,6 +81,7 @@ def store_account(id: str, _account: Account) -> None:
 account_cache: cache.Cache[str,Account] = cache.Cache(300, fetch_account, store_account)
 
 def find_account_by_name(name: str) -> Account:
+    account_cache.flush()
     packet = db.get_account_by_name(name)
     if packet['_id'] in account_cache:
         return account_cache[packet['_id']]

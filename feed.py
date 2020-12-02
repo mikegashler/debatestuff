@@ -215,9 +215,14 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
             raise ValueError('malformed request')
         _account = session.get_or_make_session(session_id).active_account()
+        _notif_in = notifs.get_or_make_notif_in(_account.id)
         act = incoming_packet['act']
         if act == 'update': # Just get updates
             pass
+        elif act == 'react': # React to a post
+            post = posts.post_cache[incoming_packet['id']]
+            emo = incoming_packet['emo']
+            notifs.notify(post.account_id, f'react_{emo}', post.id, _account.id)
         elif act == 'rate': # Rate a comment
             post = posts.post_cache[incoming_packet['id']]
             if post.account_id == _account.id:
@@ -345,7 +350,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
     annotate_updates(updates, _account)
     updates.append({
         'act': 'nc', # notification count
-        # 'val': len(_account.notif_in),
+        'val': len(_notif_in.notifs),
     })
     return {
         'rev': new_rev,
@@ -376,8 +381,10 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
         'let op_list = ', str(op_list), ';\n',
         'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
         'let admin = ', 'true' if _account.admin else 'false', ';\n',
+        'let account_name = \'', _account.name, '\';\n',
+        'let account_pic = \'', _account.image, '\';\n',
         'let comment_count = ', str(_account.comment_count), ';\n',
-        # 'let rating_count = ', str(len(_account.ratings)), ';\n',
+        'let rating_count = ', str(_account.rating_count), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
     ]

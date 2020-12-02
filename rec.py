@@ -138,14 +138,19 @@ class Engine:
 
     def rate(self, user_id: str, item_id: str, rating: List[float]) -> None:
         # Update the unbiased rating counters for this post
+        import account
         import posts
+        acc = account.account_cache[user_id]
         post = posts.post_cache[item_id]
         try:
             old_rating = db.get_rating(user_id, item_id)
+            acc.rating_count -= 1
             post.undo_rating(old_rating)
         except KeyError:
             pass
+        acc.rating_count += 1
         post.add_rating(rating)
+        account.account_cache.set_modified(user_id)
         posts.post_cache.set_modified(item_id)
 
         # Add the rating to the database of samples for training the biased recommender system
@@ -168,10 +173,14 @@ class Engine:
         prior_ratings = db.get_ratings_for_rated_items(user_id, item_ids)
         rated = [ (item_id in prior_ratings) for item_id in item_ids ] # List of bools. True iff this account has rated the item
         unrated = [ item_ids[i] for i in range(len(rated)) if not rated[i] ] # List of item ids that need rating
-        can_be_rated = [ (item_id in self.item_profiles) for item_id in unrated ] # List of bools. True iff the item can be rated
-        rate_me = [ unrated[i] for i in range(len(can_be_rated)) if can_be_rated[i] ] # List of item ids to rate
-        self_ids = [ user_id for _ in rate_me ]
-        ratings = self.predict(self_ids, rate_me)
+        if user_id in self.user_profiles:
+            can_be_rated = [ (item_id in self.item_profiles) for item_id in unrated ] # List of bools. True iff the item can be rated
+            items_to_rate = [ unrated[i] for i in range(len(can_be_rated)) if can_be_rated[i] ] # List of item ids to rate
+            users_to_rate = [ user_id for _ in items_to_rate ]
+            ratings = self.predict(users_to_rate, items_to_rate)
+        else:
+            can_be_rated = [ False for _ in unrated ]
+            ratings = []
         j = 0
         k = 0
         results: List[List[float]] = []
@@ -185,7 +194,6 @@ class Engine:
                 else:
                     results.append([])
                 j += 1
-        assert j == len(unrated) and k == len(rate_me), 'something is broken'
         return results
 
     # Performs one batch of training on the pair model
