@@ -3,6 +3,7 @@ import pymongo
 import json
 import os
 from indexable_dict import IndexableDict
+from config import config
 
 def bootstrap() -> None:
     import posts
@@ -18,10 +19,13 @@ def flush_caches() -> None:
     import session
     import posts
     import history
+    import rec
     account.account_cache.flush()
     session.session_cache.flush()
     posts.post_cache.flush()
     history.history_cache.flush()
+    rec.engine.user_profiles.flush()
+    rec.engine.item_profiles.flush()
 
 # An in-memory "database" that periodically writes to a flat file
 class FlatFile():
@@ -32,11 +36,16 @@ class FlatFile():
         self.notif_out: Dict[str, Mapping[str, Any]] = {}
         self.posts: Dict[str, Mapping[str, Any]] = {}
         self.history: Dict[str, Mapping[str, Any]] = {}
+        self.user_profiles: Dict[str, Mapping[str, Any]] = {}
+        self.item_profiles: Dict[str, Mapping[str, Any]] = {}
         self.ratings: IndexableDict[str, List[float]] = IndexableDict()
+        self.engine: Mapping[str, Any] = {}
 
     # Save all the data to a flat file
     def save(self) -> None:
+        import rec
         flush_caches()
+        self.put_engine(rec.engine.marshal())
         packet = {
             'sessions': self.sessions,
             'accounts': self.accounts,
@@ -44,9 +53,10 @@ class FlatFile():
             'notif_out': self.notif_out,
             'posts': self.posts,
             'history': self.history,
+            'user_profiles': self.user_profiles,
+            'item_profiles': self.item_profiles,
             'ratings': self.ratings.to_mapping(),
-            # 'tree': feed.root.marshal(),
-            # 'engine': rec.engine.marshal(),
+            'engine': self.engine,
         }
 
         # Write to file
@@ -56,7 +66,9 @@ class FlatFile():
 
     # Load all the data from a flat file
     def load(self) -> None:
+        import rec
         if not os.path.exists('state.json'):
+            print('No state.json file was found. Bootstrapping a new one.')
             bootstrap()
         else:
             # Parse the file
@@ -70,10 +82,10 @@ class FlatFile():
             self.notif_out = packet['notif_out']
             self.posts = packet['posts']
             self.history = packet['history']
+            self.user_profiles = packet['user_profiles']
+            self.item_profiles = packet['item_profiles']
             self.ratings = IndexableDict.from_mapping(packet['ratings'])
-
-            # # Load the recommender engine
-            # rec.engine.unmarshal(packet['engine'])
+            rec.engine.unmarshal(packet['engine'])
 
     # Consumes a marshaled session object (including its own '_id' field)
     def put_session(self, id: str, session: Mapping[str, Any]) -> None:
@@ -99,7 +111,9 @@ class FlatFile():
         for id in self.accounts.keys():
             account = self.accounts[id]
             if account['name'] == name:
-                return account
+                d = dict(account)
+                d['_id'] = id
+                return d
         raise KeyError(name)
 
     # Consumes an account id and a list of notifications
@@ -138,6 +152,24 @@ class FlatFile():
     def get_history(self, id: str) -> Mapping[str, Any]:
         return self.history[id]
 
+    # Consumes an account id and a list of floats
+    def put_user_profile(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.user_profiles[id] = doc
+
+    # Consumes an account id
+    # Returns a list of floats
+    def get_user_profile(self, id: str) -> Mapping[str, Any]:
+        return self.user_profiles[id]
+
+    # Consumes a post id and a list of floats
+    def put_item_profile(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.item_profiles[id] = doc
+
+    # Consumes a post id
+    # Returns a list of floats
+    def get_item_profile(self, id: str) -> Mapping[str, Any]:
+        return self.item_profiles[id]
+
     # Consumes an account id, a post id, and ratings for the pair
     def put_rating(self, user: str, item: str, vals: List[float]) -> None:
         self.ratings[f'{user},{item}'] = vals
@@ -174,6 +206,13 @@ class FlatFile():
             results.append((key[:first_comma], key[first_comma+1:], self.ratings[key]))
         return results
 
+    # Consumes the marshaled engine object
+    def put_engine(self, doc: Mapping[str, Any]) -> None:
+        self.engine = doc
+
+    # Returns the marshaled engine object
+    def get_engine(self) -> Mapping[str, Any]:
+        return self.engine
 
 
 
@@ -184,7 +223,7 @@ class Mongo():
 
     def __init__(self) -> None:
         if Mongo.client is None:
-            Mongo.client = pymongo.MongoClient('mongodb://localhost:27016/')
+            Mongo.client = pymongo.MongoClient(f'{config["mongo_url"]}:{config["mongo_port"]}')
         self.db = Mongo.client['debatestuff']
         self.sessions = self.db['sessions']
         self.accounts = self.db['accounts']
@@ -192,14 +231,25 @@ class Mongo():
         self.notif_out = self.db['notif_out']
         self.posts = self.db['posts']
         self.history = self.db['history']
+        self.user_profiles = self.db['user_profiles']
+        self.item_profiles = self.db['item_profiles']
         self.ratings = self.db['ratings']
+        self.engine = self.db['engine']
 
     def save(self) -> None:
+        import rec
         flush_caches()
+        self.put_engine(rec.engine.marshal())
 
     def load(self) -> None:
-        if self.posts.count() == 0:
+        import rec
+        try:
+            rec.engine.unmarshal(self.get_engine())
+        except KeyError:
+            print('No data found. Initializing new database')
             bootstrap()
+            self.accounts.create_index([('name', 1)])
+            self.ratings.create_index([('user', 1), ('item', 1)])
 
     # Consumes a marshaled session object (including its own '_id' field)
     def put_session(self, id: str, doc: Mapping[str, Any]) -> None:
@@ -305,6 +355,38 @@ class Mongo():
             raise KeyError(id)
         return doc
 
+    # Consumes an account id and a list of floats
+    def put_user_profile(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.user_profiles.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes an account id
+    # Returns a list of floats
+    def get_user_profile(self, id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.user_profiles.find_one({'_id': id})
+        if doc is None:
+            raise KeyError(id)
+        return doc
+
+    # Consumes a post id and a list of floats
+    def put_item_profile(self, id: str, doc: Mapping[str, Any]) -> None:
+        self.item_profiles.replace_one(
+            {'_id': id},
+            doc,
+            upsert=True,
+        )
+
+    # Consumes a post id
+    # Returns a list of floats
+    def get_item_profile(self, id: str) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.item_profiles.find_one({'_id': id})
+        if doc is None:
+            raise KeyError(id)
+        return doc
+
     # Consumes an account id, a post id, and ratings for the pair
     def put_rating(self, user_id: str, item_id: str, vals: List[float]) -> None:
         self.ratings.replace_one(
@@ -356,6 +438,25 @@ class Mongo():
         cursor = self.ratings.aggregate([{'$sample': { 'size': n }}])
         return [ (doc['user'], doc['item'], doc['vals']) for doc in cursor ]
 
+    # Consumes the marshaled engine object
+    def put_engine(self, doc: Mapping[str, Any]) -> None:
+        self.engine.replace_one(
+            {'_id': '0'},
+            doc,
+            upsert=True,
+        )
 
-# db = FlatFile()
-db = Mongo()
+    # Returns the marshaled engine object
+    def get_engine(self) -> Mapping[str, Any]:
+        doc: Optional[Mapping[str, Any]] = self.engine.find_one({'_id': '0'})
+        if doc is None:
+            raise KeyError(id)
+        return doc
+
+
+if config['use_mongo']:
+    print("Using Mongo for the database")
+    db: Any = Mongo()
+else:
+    print("Using a flat file for the database")
+    db = FlatFile()

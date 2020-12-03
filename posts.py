@@ -92,8 +92,8 @@ class Post():
 
         return outgoing_packet
 
-    # Returns the mean unbiased ratings and counts for a node
-    def get_unbiased_ratings(self) -> Tuple[List[float], int]:
+    # Returns the mean aioff ratings and counts for a node
+    def get_aioff_ratings(self) -> Tuple[List[float], int]:
         if self.rating_count > 0:
             assert self.ratings, 'expected ratings'
             mean = [ x / self.rating_count for x in self.ratings ]

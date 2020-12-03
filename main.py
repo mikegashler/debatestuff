@@ -7,12 +7,13 @@ import feed
 import account
 import rec
 from db import db
+import sys
+import os
 
 def do_index(query: Mapping[str, Any], session_id: str) -> str:
     return f'<html><head><meta http-equiv="refresh" content="0;URL=\'feed.html\'"></head></html>'
 
 if __name__ == "__main__":
-    # feed.bootstrap_tree()
     db.load()
     webserver.SimpleWebServer.render({
         'index.html': do_index,

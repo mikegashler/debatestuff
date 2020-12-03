@@ -125,6 +125,7 @@
 //<globals>//
 let rev = 0;
 let op_revs = [];
+let children = {}; // Maps node ids to lists of child ids
 
 
 let tag_lines = [
@@ -136,10 +137,10 @@ let tag_lines = [
     "We're not here<br>to spread alleged facts.<br>We discuss reasons.",
     "As the pen is to the sword,<br>so debate is to war.",
 ];
-let unbiased_indexes = {};
-let biased_indexes = {};
-let unbiased_scores = {};
-let biased_scores = {};
+let aioff_indexes = {};
+let aion_indexes = {};
+let aioff_scores = {};
+let aion_scores = {};
 
 // -------------
 // Slider widget
@@ -549,6 +550,11 @@ function find_or_make_node_div(entry)
     if (existing)
         return existing;
 
+    // Remember this parent-child relationship
+    if (!(entry.par in children))
+        children[entry.par] = [];
+    children[entry.par].push(entry.id);
+
     // Make the new div
     let nursery_div = document.getElementById(`n.${entry.par}`);
     if (!nursery_div)
@@ -561,11 +567,11 @@ function find_or_make_node_div(entry)
 
 function node_comparator(a, b)
 {
-    isbiased = document.getElementById('ai_on').checked;
-    if (isbiased) {
-        return biased_scores[a] > biased_scores[b];
+    isaion = document.getElementById('ai_on').checked;
+    if (isaion) {
+        return aion_scores[a] > aion_scores[b];
     } else {
-        return unbiased_scores[a] > unbiased_scores[b];
+        return aioff_scores[a] > aioff_scores[b];
     }
 }
 
@@ -573,9 +579,9 @@ function update_hint(id)
 {
     let hint_div = document.getElementById(`h.${id}`);
     if (hint_div) {
-        isbiased = document.getElementById('ai_on').checked;
-        let index = (isbiased ? biased_indexes[id] : unbiased_indexes[id]);
-        let score = (isbiased ? biased_scores[id] : unbiased_scores[id]);
+        isaion = document.getElementById('ai_on').checked;
+        let index = (isaion ? aion_indexes[id] : aioff_indexes[id]);
+        let score = (isaion ? aion_scores[id] : aioff_scores[id]);
         if (score === undefined) {
             hint_div.innerHTML = '';
             console.log('Error, ratings hint was not provided');
@@ -597,28 +603,26 @@ function update_hint(id)
 // Update the rating hints.
 function refresh_comments()
 {
-    alert('refreshing comments');
     thresh = parseInt(document.getElementById('thresh').innerHTML);
     if(!(thresh > 0 && thresh < 1000)) {
         alert('problem with thresh');
     }
-    isbiased = document.getElementById('ai_on').checked;
+    isaion = document.getElementById('ai_on').checked;
     let q = new PriorityQueue(node_comparator);
     for (let i = 0; i < op_list.length; i++) { // For each OP...
         update_hint(op_list[i]);
-        for (let j = 0; true; j++) { // For each pod...
-            let pod_id = `${op_list[i]}.${j}`;
-            let pod_nursery = document.getElementById(`n.${pod_id}`);
-            if (!pod_nursery) {
-                break;
-            }
+        kids = children[op_list[i]];
+        if (kids === undefined)
+            continue;
+        for (let j = 0; j < kids.length; j++) { // For each pod...
+            let pod_id = kids[j];
+            let grandkids = children[pod_id];
+            if (grandkids === undefined)
+                continue;
 
             // Seed the priority queue with the pod's immediate children
-            for (let k = 0; true; k++) {
-                let rp_id = `${pod_id}.${k}`;
-                if (unbiased_scores[rp_id] === undefined) {
-                    break;
-                }
+            for (let k = 0; k < grandkids.length; k++) {
+                let rp_id = grandkids[k];
                 q.push(rp_id);
             }
 
@@ -627,23 +631,18 @@ function refresh_comments()
             while (q.size() > 0 && nodes_shown < thresh) {
                 id = q.pop();
 
-                // Update the ratings hing and show the div
+                // Update the ratings hint and show the div
                 thediv = document.getElementById(`d.${id}`);
-                if (thediv) {
-                    update_hint(id);
-                    thediv.style.display = 'block';
-                } else {
-                    alert('missing div ' + id);
-                }
+                update_hint(id);
+                thediv.style.display = 'block';
                 nodes_shown++;
 
                 // Add the children
-                for (let j = 0; true; j++) {
-                    let child_id = `${id}.${j}`;
-                    if (unbiased_scores[child_id] !== undefined) {
+                let nextgen = children[id];
+                if (nextgen !== undefined) {
+                    for (let j = 0; j < nextgen.length; j++) {
+                        let child_id = nextgen[j];
                         q.push(child_id);
-                    } else {
-                        break;
                     }
                 }
             } // ...while we haven't yet reached our threshold
@@ -652,11 +651,7 @@ function refresh_comments()
             while (q.size() > 0) {
                 let id = q.pop();
                 thediv = document.getElementById(`d.${id}`);
-                if (thediv) {
-                    thediv.style.display = 'none';
-                } else {
-                    alert('missing div to hide d.' + id);
-                }
+                thediv.style.display = 'none';
             }
         } // ...for each pod in the OP
     } // ...for each OP
@@ -897,7 +892,7 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     // Hint
     s.push('<span class="tool">');
     s.push(`<div id='h.${entry.id}'></div>`);
-    s.push(`<span class="tool_anchor"><span class="tooltip">In unbiased mode, this is the most common rating. In biased mode, it is our prediction of your opinion</span></span>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">When our A.I. is turned off, this is the most common rating. When our A.I. is turned on, it is our prediction of how you would rate it</span></span>`);
     s.push('</span>');
 
     if (entry.name !== account_name) {
@@ -1046,10 +1041,10 @@ function make_rp(newDiv, entry)
 function store_ratings(entry)
 {
     if (entry.ui !== undefined) {
-        unbiased_indexes[entry.id] = entry.ui;
-        biased_indexes[entry.id] = entry.bi;
-        unbiased_scores[entry.id] = entry.us;
-        biased_scores[entry.id] = entry.bs;
+        aioff_indexes[entry.id] = entry.ui;
+        aion_indexes[entry.id] = entry.bi;
+        aioff_scores[entry.id] = entry.us;
+        aion_scores[entry.id] = entry.bs;
     }
 }
 
@@ -1173,7 +1168,7 @@ function on_change_opponent(id)
     }
 }
 
-function on_change_biased()
+function on_change_aion()
 {
     refresh_comments();
 }
@@ -1263,12 +1258,12 @@ function init()
                     <div id="ai_switch" class="hidden">
                         A.I.:<br>
                         <span class="tool">
-                            <input type="radio" id="ai_off" name="isbiased" onchange="on_change_biased();" checked>
+                            <input type="radio" id="ai_off" name="isaion" onchange="on_change_aion();" checked>
                             <span onclick="ai_off()" style="cursor: pointer;">Off</span>
                             <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>off</b>, we show the top comments according to the overall community ratings.<br><br>(Our A.I. will still learn from your ratings, if you do any, but we won't use the A.I. to decide which posts to show you.)</span></span>
                         </span>
                         <span class="tool">
-                            <input type="radio" id="ai_on" name="isbiased" onchange="on_change_biased();">
+                            <input type="radio" id="ai_on" name="isaion" onchange="on_change_aion();">
                             <span onclick="ai_on()" style="cursor: pointer;">On</span>
                             <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>on</b>, we show the comments that our A.I. predicts you would rate most highly.<br><br>(Don't be scared. He's a nice A.I. who doesn't watch you when you leave our site. And he doesn't watch you while you sleep at night either--that would be creepy.)</span></span>
                         </span>

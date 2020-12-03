@@ -107,8 +107,6 @@ def scrub_name(s: str) -> str:
 
 
 # Load the account page
-if not os.path.exists('account.html'):
-    os.chdir('/home/mike/bin/debate/')
 with open('account.html') as f:
     lines = f.readlines()
     account_page = ''.join(lines)

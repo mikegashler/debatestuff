@@ -29,34 +29,34 @@ def compute_score(ratings: List[float]) -> Tuple[int, float]:
             max_index = i
     return max_index, score
 
-# Returns unbiased index, biased index, unbiased score, and biased score for a particular node and user.
-def compute_scores(item_ratings_count: int, unbiased_ratings: List[float], biased_ratings: List[float]) -> Tuple[int, int, float, float]:
+# Returns aioff index, aion index, aioff score, and aion score for a particular node and user.
+def compute_scores(item_ratings_count: int, aioff_ratings: List[float], aion_ratings: List[float]) -> Tuple[int, int, float, float]:
     if item_ratings_count < 1:
         return 0, 0, 1000., 1000. # This item has never been rated
-    max_unbiased_index, unbiased_score = compute_score(unbiased_ratings)
-    if len(biased_ratings) == 0:
-        max_biased_index = 0
-        biased_score = 1000.
+    max_aioff_index, aioff_score = compute_score(aioff_ratings)
+    if len(aion_ratings) == 0:
+        max_aion_index = 0
+        aion_score = 1000.
     else:
-        max_biased_index, biased_score = compute_score(biased_ratings)
-    return max_unbiased_index, max_biased_index, unbiased_score, biased_score
+        max_aion_index, aion_score = compute_score(aion_ratings)
+    return max_aioff_index, max_aion_index, aioff_score, aion_score
 
 # Attaches rating statistics to the updates
 def annotate_updates(updates: List[Dict[str, Any]], _account: account.Account) -> None:
     post_ids = [ up['id'] for up in updates if (up['act'] == 'add' or up['act'] == 'rate') ]
     if len(post_ids) == 0:
         return
-    unbiased_ratings: List[List[float]] = []
+    aioff_ratings: List[List[float]] = []
     ratings_counts: List[int] = []
     for post_id in post_ids:
         post = posts.post_cache[post_id]
-        ur, count = post.get_unbiased_ratings()
-        unbiased_ratings.append(ur)
+        ur, count = post.get_aioff_ratings()
+        aioff_ratings.append(ur)
         ratings_counts.append(count)
-    biased_ratings = rec.engine.get_ratings(_account.id, post_ids)
+    aion_ratings = rec.engine.get_ratings(_account.id, post_ids)
     new_item_threshold = 3 # Number of ratings before an item is no longer considered "new"
-    for up, c, ur, br in zip(updates, ratings_counts, unbiased_ratings, biased_ratings):
-        # Compute unbiased index, biased index, unbiased score, and biased score for this update and user
+    for up, c, ur, br in zip(updates, ratings_counts, aioff_ratings, aion_ratings):
+        # Compute aioff index, aion index, aioff score, and aion score for this update and user
         up['ui'], up['bi'], up['us'], up['bs'] = compute_scores(c, ur, br)
 
 
@@ -368,7 +368,6 @@ def pick_ops(path: str) -> Tuple[bool, List[str]]:
             op_list.append(node.children[i])
             if len(op_list) >= 6:
                 break
-    print(f'xxx picked op_list={op_list}')
     return is_leaf_cat, op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:

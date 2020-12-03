@@ -5,3 +5,5 @@ pymongo==3.11.0
 
 # dev dependencies
 mypy==0.761
+
+# You also need to do: "sudo apt-get install mongodb-server"

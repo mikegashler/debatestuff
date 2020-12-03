@@ -124,26 +124,6 @@ class SimpleWebServer(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(bytes(json.dumps(response), 'utf8'))
 
-    def translate_path(self, path: str) -> str:
-        """Translate a /-separated PATH to the local filename syntax.
-        Components that mean special things to the local file system
-        (e.g. drive or directory names) are ignored.  (XXX They should
-        probably be diagnosed.)
-        """
-        # abandon query parameters
-        path = path.split('?',1)[0]
-        path = path.split('#',1)[0]
-        path = posixpath.normpath(urllib.parse.unquote(path))
-        words = path.split('/')
-        words = [_f for _f in words if _f]
-        path = os.getcwd()
-        for word in words:
-            drive, word = os.path.splitdrive(word)
-            head, word = os.path.split(word)
-            if word in (os.curdir, os.pardir): continue
-            path = os.path.join(path, word)
-        return path
-
     # Returns the filename specified for the file
     def receive_file(self, save_as_name: str, max_size: int) -> str:
         content_type = self.headers['content-type']
@@ -188,7 +168,7 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         port = 8986
         httpd = HTTPServer(('', port), SimpleWebServer)
         webbrowser.open(f'http://localhost:{port}/index.html', new=2)
-        print('\n\nPlease press Ctrl-C to exit')
+        print('Press Ctrl-C to shut down again')
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
