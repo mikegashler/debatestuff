@@ -2,10 +2,10 @@ from typing import List, Mapping, Dict, Any, cast, Tuple, Optional, Set
 import webserver
 import urllib.parse
 import json
-import session
+import sessions
 import random
 import rec
-import account
+import accounts
 import traceback
 import posts
 import history
@@ -42,7 +42,7 @@ def compute_scores(item_ratings_count: int, aioff_ratings: List[float], aion_rat
     return max_aioff_index, max_aion_index, aioff_score, aion_score
 
 # Attaches rating statistics to the updates
-def annotate_updates(updates: List[Dict[str, Any]], _account: account.Account) -> None:
+def annotate_updates(updates: List[Dict[str, Any]], account: accounts.Account) -> None:
     post_ids = [ up['id'] for up in updates if (up['act'] == 'add' or up['act'] == 'rate') ]
     if len(post_ids) == 0:
         return
@@ -53,7 +53,7 @@ def annotate_updates(updates: List[Dict[str, Any]], _account: account.Account) -
         ur, count = post.get_aioff_ratings()
         aioff_ratings.append(ur)
         ratings_counts.append(count)
-    aion_ratings = rec.engine.get_ratings(_account.id, post_ids)
+    aion_ratings = rec.engine.get_ratings(account.id, post_ids)
     new_item_threshold = 3 # Number of ratings before an item is no longer considered "new"
     for up, c, ur, br in zip(updates, ratings_counts, aioff_ratings, aion_ratings):
         # Compute aioff index, aion index, aioff score, and aion score for this update and user
@@ -222,24 +222,23 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
     try:
         if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
             raise ValueError('malformed request')
-        _account = session.get_or_make_session(session_id).active_account()
-        _notif_in = notifs.get_or_make_notif_in(_account.id)
+        account = sessions.get_or_make_session(session_id).active_account()
         act = incoming_packet['act']
         if act == 'update': # Just get updates
             pass
         elif act == 'react': # React to a post
             post = posts.post_cache[incoming_packet['id']]
             emo = incoming_packet['emo']
-            notifs.notify(post.account_id, f'react_{emo}', post.id, _account.id)
+            notifs.notify(post.account_id, f'react_{emo}', post.id, account.id)
         elif act == 'rate': # Rate a comment
             post = posts.post_cache[incoming_packet['id']]
-            if post.account_id == _account.id:
+            if post.account_id == account.id:
                 updates.append({
                     'act': 'alert',
                     'msg': 'Sorry, rating your own posts is not allowed',
                 })
             else:
-                rec.engine.rate(_account.id, incoming_packet['id'], incoming_packet['ratings'])
+                rec.engine.rate(account.id, incoming_packet['id'], incoming_packet['ratings'])
                 updates.append({
                     'act': 'rate',
                     'id': incoming_packet['id'],
@@ -248,17 +247,17 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
-            # if _account.comment_count * 2 >= _account.ratings_count:
+            # if account.comment_count * 2 >= account.ratings_count:
             #     updates.append({
             #         'act': 'alert',
-            #         'msg': 'Sorry, you have rated {_account.ratings_count} comments and have posted {_account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
+            #         'msg': 'Sorry, you have rated {account.ratings_count} comments and have posted {account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
             #     })
             # else:
             text = format_comment(incoming_packet['text'], 1000)
             par = posts.post_cache[incoming_packet['parid']]
             new_post_id = posts.new_post_id()
-            child = posts.new_post(new_post_id, incoming_packet['parid'], 'rp', text, _account.id)
-            _account.comment_count += 1
+            child = posts.new_post(new_post_id, incoming_packet['parid'], 'rp', text, account.id)
+            account.comment_count += 1
             updates.append({
                 'act': 'focus',
                 'id': child.id,
@@ -270,9 +269,9 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             ancestor = par
             visited: Set[str] = set()
             while ancestor.type == 'rp':
-                if ancestor.account_id != _account.id and not ancestor.id in visited:
+                if ancestor.account_id != account.id and not ancestor.id in visited:
                     visited.add(ancestor.id)
-                    notifs.notify(ancestor.account_id, 'rp', ancestor.id, _account.id)
+                    notifs.notify(ancestor.account_id, 'rp', ancestor.id, account.id)
                 if len(ancestor.parent_id) == 0:
                     break
                 else:
@@ -282,8 +281,8 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                 ancestor = posts.post_cache[ancestor.parent_id]
                 if ancestor.type == 'op':
                     assert len(ancestor.account_id) > 0, 'expected a valid account id'
-                    if ancestor.account_id != _account.id and not ancestor.id in visited:
-                        notifs.notify(ancestor.account_id, 'op', ancestor.id, _account.id)
+                    if ancestor.account_id != account.id and not ancestor.id in visited:
+                        notifs.notify(ancestor.account_id, 'op', ancestor.id, account.id)
         elif act == 'newop': # Start a new debate
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
@@ -292,22 +291,22 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             assert cat.type == 'cat', 'Not a category'
             assert len(cat.children) == 0 or posts.post_cache[cat.children[0]].type == 'op', 'Please choose a sub-category for your debate'
             new_op_id = posts.new_post_id()
-            op = posts.new_post(new_op_id, cat.id, 'op', text, _account.id)
+            op = posts.new_post(new_op_id, cat.id, 'op', text, account.id)
             if incoming_packet['mode'] == 'open':
                 new_pod_id = posts.new_post_id()
-                posts.new_post(new_pod_id, new_op_id, 'pod', 'Open discussion', _account.id)
+                posts.new_post(new_pod_id, new_op_id, 'pod', 'Open discussion', account.id)
             else:
-                whitelist: List[str] = [_account.id]
+                whitelist: List[str] = [account.id]
                 if incoming_packet['mode'] == 'name':
                     opponent_name = incoming_packet['name']
-                    opponent_account = account.find_account_by_name(opponent_name)
+                    opponent_account = accounts.find_account_by_name(opponent_name)
                     whitelist.append(opponent_account.id)
-                    notifs.notify(opponent_account.id, 'chal', op.id, _account.id)
+                    notifs.notify(opponent_account.id, 'chal', op.id, account.id)
                 new_pod_id = posts.new_post_id()
-                new_pod = posts.new_post(new_pod_id, new_op_id, 'pod', 'One-on-one debate', _account.id)
+                new_pod = posts.new_post(new_pod_id, new_op_id, 'pod', 'One-on-one debate', account.id)
                 new_pod.wl = whitelist
                 new_pod_id = posts.new_post_id()
-                posts.new_post(new_pod_id, new_op_id, 'pod', 'Peanut gallery', _account.id)
+                posts.new_post(new_pod_id, new_op_id, 'pod', 'Peanut gallery', account.id)
             summary = text[:50] + '...' if len(text) > 50 else ''
             updates.append({
                 'act': 'pushop',
@@ -315,27 +314,28 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             })
             print(f'Added op {op.id} with text \'{summary}\'')
         elif act == 'accept': # Accept a debate challenge
-            print(f'{_account.name} accepted a debate challenge')
+            print(f'{account.name} accepted a debate challenge')
             pod_id = incoming_packet['id']
             pod = posts.post_cache[pod_id]
             assert pod.type == 'pod', 'not a pod'
-            if len(pod.wl) == 1 and not _account.id in pod.wl:
-                pod.wl.append(_account.id)
+            if len(pod.wl) == 1 and not account.id in pod.wl:
+                pod.wl.append(account.id)
                 history.rewrite_op_history(pod.op_id)
                 history.history_cache.set_modified(pod.op_id)
                 assert len(pod.parent_id) > 0, 'invalid parent id'
-                opponent_account = account.account_cache[pod.wl[0]]
-                notifs.notify(opponent_account.id, 'acc', pod.op_id, _account.id)
+                opponent_account = accounts.account_cache[pod.wl[0]]
+                notifs.notify(opponent_account.id, 'acc', pod.op_id, account.id)
             else:
                 updates.append({
                     'act': 'alert',
                     'msg': 'Sorry, someone else accepted this challenge first',
                 })
         elif act == 'notifs': # Get notifications
-            digested_notifications = notifs.digest_notifications(_account.id)
+            digested_notifications = notifs.digest_notifications(account.id)
+            notifs_out = notifs.notif_out_cache[account.id]
             updates.append({
                 'act': 'notifs',
-                'pos': 0, #_account.notif_pos,
+                'pos': notifs_out.pos,
                 'msgs': [
                     {
                         'type': m[0],
@@ -347,12 +347,12 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     for m in digested_notifications ]
             })
         elif act == 'del': # Delete a post
-            ok = True if _account.admin else False
+            ok = True if account.admin else False
             msg = 'Sorry, you lack permission to delete that post'
             if not ok:
                 post = posts.post_cache[pod_id]
                 if len(post.children) == 0:
-                    if post.account_id == _account.id:
+                    if post.account_id == account.id:
                         ok = True
                 else:
                     msg = 'Sorry, you cannot delete a post someone has already replied to'
@@ -371,11 +371,12 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             'act': 'alert',
             'msg': repr(e),
         })
-    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, _account.id)
-    annotate_updates(updates, _account)
+    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account.id)
+    annotate_updates(updates, account)
+    notif_in = notifs.get_or_make_notif_in(account.id)
     updates.append({
         'act': 'nc', # notification count
-        'val': len(_notif_in.notifs),
+        'val': len(notif_in.notifs),
     })
     return {
         'rev': new_rev,
@@ -396,7 +397,7 @@ def pick_ops(path: str) -> Tuple[bool, List[str]]:
     return is_leaf_cat, op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:
-    _account = session.get_or_make_session(session_id).active_account()
+    account = sessions.get_or_make_session(session_id).active_account()
     path = query['path'] if 'path' in query else '000000000000'
     is_leaf_cat, op_list = pick_ops(path)
     globals = [
@@ -404,11 +405,11 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
         'let path = "', path, '";\n',
         'let op_list = ', str(op_list), ';\n',
         'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
-        'let admin = ', 'true' if _account.admin else 'false', ';\n',
-        'let account_name = \'', _account.name, '\';\n',
-        'let account_pic = \'', _account.image, '\';\n',
-        'let comment_count = ', str(_account.comment_count), ';\n',
-        'let rating_count = ', str(_account.rating_count), ';\n',
+        'let admin = ', 'true' if account.admin else 'false', ';\n',
+        'let account_name = \'', account.name, '\';\n',
+        'let account_pic = \'', account.image, '\';\n',
+        'let comment_count = ', str(account.comment_count), ';\n',
+        'let rating_count = ', str(account.rating_count), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
     ]

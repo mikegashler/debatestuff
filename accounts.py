@@ -1,5 +1,5 @@
 from typing import List, Mapping, Dict, Any, cast, Tuple, Optional
-import session
+import sessions
 import webserver
 from PIL import Image
 import random
@@ -112,7 +112,7 @@ with open('account.html') as f:
     account_page = ''.join(lines)
 
 def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
-    sess = session.get_or_make_session(session_id)
+    sess = sessions.get_or_make_session(session_id)
     account = sess.active_account()
     act = ob['act']
     if act == 'logout':
@@ -142,7 +142,7 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
     return {}
 
 def do_account(query: Mapping[str, Any], session_id: str) -> str:
-    sess = session.get_or_make_session(session_id)
+    sess = sessions.get_or_make_session(session_id)
     account = sess.active_account()
     accounts = [ account_cache[id] for id in sess.account_ids ]
     globals = [
@@ -160,7 +160,7 @@ def do_error_page(err: str, session_id: str) -> str:
     return f'<html><body>{err}</body></html>'
 
 def receive_image(query: Mapping[str, Any], session_id: str) -> str:
-    account = session.get_or_make_session(session_id).active_account()
+    account = sessions.get_or_make_session(session_id).active_account()
 
     # Receive the file
     temp_filename = f'/tmp/{account.id}.jpeg'

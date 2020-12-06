@@ -6,13 +6,13 @@ from indexable_dict import IndexableDict
 from config import config
 
 def flush_caches() -> None:
-    import account
-    import session
+    import accounts
+    import sessions
     import posts
     import history
     import rec
-    account.account_cache.flush()
-    session.session_cache.flush()
+    accounts.account_cache.flush()
+    sessions.session_cache.flush()
     posts.post_cache.flush()
     history.history_cache.flush()
     rec.engine.user_profiles.flush()

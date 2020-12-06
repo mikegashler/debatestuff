@@ -15,10 +15,12 @@ config = {
                 { 'type': 'pod', 'account': 1, 'text': 'Open discussion', 'children': [
                     { 'type': 'rp', 'account': 2, 'text': 'So what? Do you think you know a statistically significant portion of the population?', 'children': [
                     ] },
+                    { 'type': 'rp', 'account': 4, 'text': 'The numerous statisticians who have thoroughly analyzed the data say otherwise. So do the courts that have weighed the arguments from both sides, including testimony from experts on the topic. So why should we believe your anecdote over their thorough analysis?', 'children': [
+                    ] },
                 ] },
             ] },
         ] },
-        { 'type': 'cat', 'text': 'Science / Technology / Future', 'children': [
+        { 'type': 'cat', 'text': 'Science / Technology / Transhumanism', 'children': [
             { 'type': 'op', 'account': 3, 'text': 'I think robots are going to kill off humanity in the next 50 years because technology is advancing at an exponential rate. People suck at comprehending how rapidly exponential growth accelerates. One day, BAM!, and it hits you.', 'children': [
                 { 'type': 'pod', 'account': 3, 'text': 'Open discussion', 'children': [
                     { 'type': 'rp', 'account': 4, 'text': 'Maybe. But people have been saying that for decades. How come it never seems to happen?', 'children': [

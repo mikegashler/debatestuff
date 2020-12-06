@@ -4,7 +4,7 @@ import rec
 import random
 import string
 import history
-import account
+import accounts
 import cache
 
 def new_post_id() -> str:
@@ -73,7 +73,7 @@ class Post():
 
         # Give the client the author's picture and name
         if len(self.account_id) > 0:
-            acc = account.account_cache[self.account_id]
+            acc = accounts.account_cache[self.account_id]
             outgoing_packet['image'] = acc.image
             outgoing_packet['name'] = acc.name
 

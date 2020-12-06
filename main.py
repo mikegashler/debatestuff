@@ -2,10 +2,10 @@ from typing import List, Mapping, Dict, Any, cast, Tuple
 import webserver
 import urllib.parse
 import ast
-import session
+import sessions
 import feed
-import account
-import session
+import accounts
+import sessions
 import rec
 from db import db
 import sys
@@ -16,13 +16,13 @@ from config import config
 def do_index(query: Mapping[str, Any], session_id: str) -> str:
     return f'<html><head><meta http-equiv="refresh" content="0;URL=\'feed.html\'"></head></html>'
 
-def bootstrap_recursive(id: str, par_id: str, ob: Mapping[str, Any], account_ids: Dict[Any, str], sess: session.Session) -> None:
+def bootstrap_recursive(id: str, par_id: str, ob: Mapping[str, Any], account_ids: Dict[Any, str], sess: sessions.Session) -> None:
     if 'account' in ob:
         key = ob['account']
         if key in account_ids:
             account_id = account_ids[key]
         else:
-            acc = account.make_starter_account()
+            acc = accounts.make_starter_account()
             account_id = acc.id
             account_ids[key] = account_id
             sess.account_ids.append(account_id)
@@ -37,7 +37,7 @@ def bootstrap_recursive(id: str, par_id: str, ob: Mapping[str, Any], account_ids
 # This is only called the first time, when the database is empty.
 def bootstrap() -> None:
     # The next client to connect will be given admin privileges
-    sess: session.Session = session.reserve_session()
+    sess: sessions.Session = sessions.reserve_session()
     sess.active_account().admin = True
 
     # Populate the comment tree
@@ -50,7 +50,7 @@ def bootstrap() -> None:
     else:
         # No bootstrap data, so just do a bare bones setup.
         posts.new_post(root_id, '', 'cat', 'Everything', '')
-    session.session_cache.set_modified(sess.id)
+    sessions.session_cache.set_modified(sess.id)
 
 if __name__ == "__main__":
     db.load()
@@ -60,9 +60,9 @@ if __name__ == "__main__":
         'index.html': do_index,
         'feed.html': feed.do_feed,
         'feed_ajax.html': feed.do_ajax,
-        'account.html': account.do_account,
-        'account_ajax.html': account.do_ajax,
-        'receive_image.html': account.receive_image,
+        'account.html': accounts.do_account,
+        'account_ajax.html': accounts.do_ajax,
+        'receive_image.html': accounts.receive_image,
     })
     db.save()
     print('\nGoodbye.')

@@ -117,9 +117,9 @@ class Engine:
 
     def rate(self, user_id: str, item_id: str, rating: List[float]) -> None:
         # Update the aioff rating counters for this post
-        import account
+        import accounts
         import posts
-        acc = account.account_cache[user_id]
+        acc = accounts.account_cache[user_id]
         post = posts.post_cache[item_id]
         global rating_freq
         global rating_count
@@ -150,7 +150,7 @@ class Engine:
             self.item_profiles[item_id]
         except KeyError:
             self.item_profiles.add(item_id, np.random.normal(0., 0.01, PROFILE_SIZE))
-        account.account_cache.set_modified(user_id)
+        accounts.account_cache.set_modified(user_id)
         posts.post_cache.set_modified(item_id)
 
         # Do a little training
