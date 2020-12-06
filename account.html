@@ -118,8 +118,8 @@ function outgoing(payload)
 function incoming(response)
 {
     let ob = JSON.parse(response);
-    if (ob.error !== undefined) {
-        alert(`Error: ${ob.error}`);
+    if (ob.alert !== undefined) {
+        alert(`${ob.alert}`);
         return;
     }
     if (ob.have_pw !== undefined) {

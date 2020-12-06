@@ -5,15 +5,6 @@ import os
 from indexable_dict import IndexableDict
 from config import config
 
-def bootstrap() -> None:
-    import posts
-    root = posts.new_post('000000000000', '', 'cat', 'Everything', '')
-    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Politics', '')
-    posts.new_post(posts.new_post_id(), root.id, 'cat', 'STEM', '')
-    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Entertainment', '')
-    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Theology', '')
-    posts.new_post(posts.new_post_id(), root.id, 'cat', 'Miscellaneous', '')
-
 def flush_caches() -> None:
     import account
     import session
@@ -68,8 +59,7 @@ class FlatFile():
     def load(self) -> None:
         import rec
         if not os.path.exists('state.json'):
-            print('No state.json file was found. Bootstrapping a new one.')
-            bootstrap()
+            print('No state.json file was found. Starting with no data.')
         else:
             # Parse the file
             blob = None
@@ -104,6 +94,10 @@ class FlatFile():
     # Returns a marshaled account
     def get_account(self, id: str) -> Mapping[str, Any]:
         return self.accounts[id]
+
+    # Returns true iff there are no accounts yet
+    def have_no_accounts(self) -> bool:
+        return len(self.accounts) == 0
 
     # Consumes an account name
     # Returns a marshaled account with that name if one exists
@@ -246,8 +240,7 @@ class Mongo():
         try:
             rec.engine.unmarshal(self.get_engine())
         except KeyError:
-            print('No data found. Initializing new database')
-            bootstrap()
+            print('The database is empty. Starting with no data.')
             self.accounts.create_index([('name', 1)])
             self.ratings.create_index([('user', 1), ('item', 1)])
 
@@ -290,6 +283,11 @@ class Mongo():
         if doc is None:
             raise KeyError(name)
         return doc
+
+    # Returns true iff there are no accounts yet
+    def have_no_accounts(self) -> bool:
+        n: int = self.accounts.find().count()
+        return n == 0
 
     # Consumes an account id and a list of notifications
     def put_notif_in(self, id: str, doc: Mapping[str, Any]) -> None:

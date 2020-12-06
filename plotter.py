@@ -20,6 +20,15 @@ class Plotter():
             b = self._proj(b)
         self.d.add(self.d.line(a, b, stroke_width=thickness, stroke=svgwrite.rgb(*color)))
 
+    def rect(self, a:Tuple[float,float], b:Tuple[float,float], color:Tuple[int,int,int]=(0,0,0), absolute:bool=False) -> None:
+        if not absolute:
+            a = self._proj(a)
+            b = self._proj(b)
+        tl = (min(a[0], b[0]), min(a[1], b[1]))
+        br = (max(a[0], b[0]), max(a[1], b[1]))
+        wh = (br[0]-tl[0],br[1]-tl[1])
+        self.d.add(self.d.rect(tl, wh, stroke='none', fill=svgwrite.rgb(*color)))
+
     def circle(self, pos:Tuple[float,float], radius:float=1., color:Tuple[int,int,int]=(0,0,0), absolute:bool=False) -> None:
         if not absolute:
             pos = self._proj(pos)

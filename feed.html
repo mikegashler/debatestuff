@@ -8,7 +8,7 @@
         }
 
         p {
-            line-height: 2.0;
+            line-height: 1.6;
         }
 
         a {
@@ -709,13 +709,12 @@ function rate_one(id, index)
 
 function del_node(id)
 {
-    alert('Sorry, delete is not yet implemented');
-/*
+    if (!confirm(`Are you sure you want to delete ${id}`))
+        return;
     outgoing({
         act: 'del',
         id: id,
     });
-*/
 }
 
 function closeReply(id)
@@ -948,8 +947,8 @@ function make_op(newDiv, entry)
     s.push('<table><tr>');
     s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}">`);
     s.push('</td><td width=4px></td>');
-    s.push(`<td><b>${entry.name}</b><br>`);
-    s.push(`<big><big>${entry.text}</big></big></td>`);
+    s.push(`<td><p><b>${entry.name}</b><br>`);
+    s.push(`<big><big>${entry.text}</big></big></p></td>`);
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
     s.push('</td>');
@@ -1008,19 +1007,19 @@ function make_rp(newDiv, entry)
     if (open_pod) {
         // Peanut gallery comment
         s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
-        s.push('<td valign=top>');
+        s.push('<td valign=top><p>');
         s.push(`<b>${entry.name}</b><br>`);
         s.push(entry.text);
-        s.push('</td>');
+        s.push('</p></td>');
     } else {
         // One-on-one debate comment
         let image_on_left = (entry.ind === 0 ? true : false)
         if (image_on_left)
             s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
-        s.push('<td valign=top>');
+        s.push('<td valign=top><p>');
         s.push(`<b>${entry.name}</b><br>`);
         s.push(entry.text);
-        s.push('</td>');
+        s.push('</p></td>');
         if (!image_on_left)
             s.push(`<td width=4px></td><td valign=top align=right><img class="rounded" src="${entry.image}"></td>`);
     }

@@ -47,7 +47,7 @@ class Account():
         self.name = name
         self.password = ''
         self.image = image
-        self.admin = False
+        self.admin = True if (len(account_cache) == 0 and db.have_no_accounts()) else False
         self.comment_count = 0
         self.rating_count = 0
 
@@ -123,9 +123,19 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
         return { 'reload': True }
     elif act == 'change_name':
         newname = scrub_name(ob['name'])
-        account.name = newname
+        existing_account: Optional[Account] = None
+        try:
+            existing_account = find_account_by_name(newname)
+        except KeyError:
+            pass
+        if existing_account is None:
+            account.name = newname
+            account_cache.set_modified(account.id)
+        else:
+            return { 'alert': 'Sorry, that name is already taken.' }
     elif act == 'change_pw':
         account.password = ob['pw']
+        account_cache.set_modified(account.id)
         return { 'have_pw': len(account.password) > 0 }
     else:
         raise RuntimeError('unrecognized action')

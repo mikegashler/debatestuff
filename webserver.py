@@ -1,4 +1,4 @@
-from typing import Mapping, Any, Dict, Callable, cast
+from typing import Mapping, Any, Dict, Callable, cast, Optional
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import webbrowser
 import os
@@ -10,10 +10,17 @@ import string
 from http.cookies import SimpleCookie
 import re
 import posixpath
+import datetime
 
 COOKIE_LEN = 12
 
+reserved_session: Optional[str] = None
+
 def new_session_id() -> str:
+    global reserved_session
+    if reserved_session is not None:
+        sess_id, reserved_session = reserved_session, None
+        return sess_id
     return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(COOKIE_LEN))
 
 sws: 'SimpleWebServer'
@@ -31,7 +38,10 @@ class SimpleWebServer(BaseHTTPRequestHandler):
             self.send_header('Content-type', 'image/jpeg')
         else:
             self.send_header('Content-type', 'text/html')
-        self.send_header('Set-Cookie', f'sid={session_id}; samesite=strict')
+
+        expires = datetime.datetime.utcnow() + datetime.timedelta(days=720)
+        s_expires = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        self.send_header('Set-Cookie', f'sid={session_id}; samesite=strict; Expires={s_expires}')
         self.end_headers()
         if isinstance(content, str):
             self.wfile.write(bytes(content, 'utf8'))
@@ -59,9 +69,14 @@ class SimpleWebServer(BaseHTTPRequestHandler):
 
         # Parse cookies
         cookie = SimpleCookie(self.headers.get('Cookie')) # type: ignore
-        session_id = cookie['sid'].value if 'sid' in cookie else new_session_id()
-        if len(session_id) != COOKIE_LEN:
+        if 'sid' in cookie:
+            session_id = cookie['sid'].value
+            if len(session_id) != COOKIE_LEN:
+                print(f'Bad session id {session_id}. Making new one.')
+                session_id = new_session_id()
+        else:
             session_id = new_session_id()
+            print(f'No session id. Making new one.')
 
         # Get content
         if filename in simpleWebServerPages:

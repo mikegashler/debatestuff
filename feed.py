@@ -125,6 +125,15 @@ def format_comment(text: str, maxlen: int) -> str:
     text = restore_whitelisted_tags(text)
     return text
 
+def delete_post(post_id: str) -> None:
+    post = posts.post_cache[post_id]
+    par = posts.post_cache[post.parent_id]
+    index = par.children.index(post_id)
+    del par.children[index]
+    if len(post.op_id) > 0:
+        history.rewrite_op_history(post.op_id)
+    # todo: recursively remove the post and all its children from the database
+
 def summarize_post(post_id: str, n: int) -> str:
     post = posts.post_cache[post_id]
     summary = post.text[:n] + ('...' if len(post.text) > n else '')
@@ -188,7 +197,6 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
     # Do OP updates
     patience = 100
     if len(category.children) == 0 or posts.post_cache[category.children[0]].type == 'op':
-        # Showing a leaf category (the most common case), so update each OP
         for i, op_id in enumerate(op_list):
             if patience == 0:
                 break
@@ -338,6 +346,23 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     }
                     for m in digested_notifications ]
             })
+        elif act == 'del': # Delete a post
+            ok = True if _account.admin else False
+            msg = 'Sorry, you lack permission to delete that post'
+            if not ok:
+                post = posts.post_cache[pod_id]
+                if len(post.children) == 0:
+                    if post.account_id == _account.id:
+                        ok = True
+                else:
+                    msg = 'Sorry, you cannot delete a post someone has already replied to'
+            if ok:
+                delete_post(incoming_packet['id'])
+            else:
+                updates.append({
+                    'act': 'alert',
+                    'msg': msg,
+                })
         else:
             raise RuntimeError('unrecognized action')
     except Exception as e:

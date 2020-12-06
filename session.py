@@ -2,6 +2,7 @@ from typing import Mapping, Dict, Any, List, Tuple
 import cache
 import account
 from db import db
+import webserver
 
 class Session():
     def __init__(self, id: str, account_ids: List[str], active_index: int) -> None:
@@ -17,7 +18,7 @@ class Session():
                 acc_id = self.account_ids[i]
                 acc = account.account_cache[acc_id]
                 if len(acc.password) == 0:
-                    assert self.active_account != i, 'Log out should not be an option for accounts with no password'
+                    assert self.active_index != i, 'Log out should not be an option for accounts with no password'
                     self.active_index = i
                     return
             no_password_account = account.make_starter_account()
@@ -60,7 +61,11 @@ def get_or_make_session(session_id: str) -> Session:
     except KeyError:
         _account = account.make_starter_account()
         session = Session(session_id, [ _account.id ], 0)
-        session_cache[session_id] = session
-        # if len(sessions) == 1:
-        #     session.accounts[0].admin = True
+        session_cache.add(session_id, session)
         return session
+
+# Make a session in advance for the next client who will need a new session
+def reserve_session() -> Session:
+    assert webserver.reserved_session is None, 'There is already a reserved session'
+    webserver.reserved_session = webserver.new_session_id()
+    return get_or_make_session(webserver.reserved_session)
