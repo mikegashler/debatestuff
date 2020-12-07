@@ -146,6 +146,17 @@ function switch_account(account_name)
     })
 }
 
+function switch_manual()
+{
+    let un = document.getElementById('manual_username');
+    if (un.value.length < 1) {
+        alert('Please enter your username');
+        un.focus();
+        return;
+    }
+    switch_account(un.value);
+}
+
 function get_updates()
 {
     //outgoing({ act: 'update' });
@@ -165,26 +176,30 @@ function init()
     show_or_hide_logout();
 
     // Make the switch accounts div
-    if (account_names.length > 1) {
-        if (account_images.length != account_names.length) {
-            throw 'Expected images and names to have the same length';
-        }
-        let s = [];
-        s.push('<h3>Switch accounts</h3>');
-        s.push('<table>');
-        for (let i = 0; i < account_names.length; i++) {
-            if (account_names[i] == username)
-                continue;
-            s.push('<tr><td>');
-            s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
-            s.push(`<img class="rounded" src='${account_images[i]}'>`);
-            s.push('</a></td><td>');
-            s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
-            s.push(`${account_names[i]}</a></td></tr>`);
-        }
-        let switch_account_div = document.getElementById('switch_account_div');
-        switch_account_div.innerHTML = s.join('');
+    if (account_images.length != account_names.length) {
+        throw 'Expected images and names to have the same length';
     }
+    let s = [];
+    s.push('<h3>Switch account</h3>');
+    s.push('<table>');
+    for (let i = 0; i < account_names.length; i++) {
+        if (account_names[i] == username)
+            continue;
+        s.push('<tr><td>');
+        s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+        s.push(`<img class="rounded" src='${account_images[i]}'>`);
+        s.push('</a></td><td>');
+        s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+        s.push(`${account_names[i]}</a></td></tr>`);
+    }
+    s.push('<tr><td>');
+    s.push(`<a onclick="switch_manual()" href="javascript:void(0);">`);
+    s.push('<img class="rounded" src="starter_pics/unknown.jpeg">');
+    s.push('</a></td><td>');
+    s.push('<input type="text" id="manual_username"><button type="button" onclick="switch_manual()">log in</button>');
+    s.push('<td><tr>');
+    let switch_account_div = document.getElementById('switch_account_div');
+    switch_account_div.innerHTML = s.join('');
 }
 
 function submit_profile_pic_form()
@@ -278,10 +293,11 @@ function submit_pw_change()
     </td>
 </tr></table>
 <p>
-    (<b>Warning:</b> Do not give us personally identifying information.
-    We use A.I.. You don't want it showing up at your house.
+    (<b>Warning:</b> Do not hand out personally identifying information on the Internet.
+    We use A.I.. You don't want it showing up at your house (j/k).
+
     Seriously, though, pseudonymns are cool here. This is a free web service,
-    not a bank account or a government program. Don't be stupid with personal information. )
+    not a bank account or a government program. Keep control over your personal information. )
 </p>
 <br>
 <table><tr><td>Your profile picture: <img class="rounded" id='profile_pic' onclick='on_click_profile_pic()'></td>

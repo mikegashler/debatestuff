@@ -10,6 +10,8 @@ config = {
     { 'type': 'cat', 'text': 'Everything', 'children': [
         { 'type': 'cat', 'text': 'Politics', 'children': [
             { 'type': 'op', 'account': 0, 'text': 'Republicans and Democrats are just two sides of the same party. One wants to spend more money on law enforcement and military might. The other wants to spend more money on social welfare. But ultimately they both want bigger government. We need to starve the beast!', 'children': [
+                { 'type': 'pod', 'account': 0, 'text': 'Open discussion', 'children': [
+                ] },
             ] },
             { 'type': 'op', 'account': 1, 'text': 'The 2020 election was rigged! Everyone I know voted for Donald Trump.', 'children': [
                 { 'type': 'pod', 'account': 1, 'text': 'Open discussion', 'children': [

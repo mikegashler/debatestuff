@@ -9,6 +9,7 @@ from indexable_dict import IndexableDict
 import os
 from db import db
 import cache
+import traceback
 
 auto_name_1 = [
  'amazing', 'awesome', 'blue', 'brave', 'calm', 'cheesy', 'confused', 'cool', 'crazy', 'crafty',
@@ -112,34 +113,43 @@ with open('account.html') as f:
     account_page = ''.join(lines)
 
 def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
-    sess = sessions.get_or_make_session(session_id)
-    account = sess.active_account()
-    act = ob['act']
-    if act == 'logout':
-        sess.switch_account('')
-        return { 'reload': True }
-    elif act == 'switch':
-        sess.switch_account(ob['name'])
-        return { 'reload': True }
-    elif act == 'change_name':
-        newname = scrub_name(ob['name'])
-        existing_account: Optional[Account] = None
-        try:
-            existing_account = find_account_by_name(newname)
-        except KeyError:
-            pass
-        if existing_account is None:
-            account.name = newname
+    try:
+        sess = sessions.get_or_make_session(session_id)
+        account = sess.active_account()
+        act = ob['act']
+        if act == 'logout':
+            sess.switch_account('')
+            return { 'reload': True }
+        elif act == 'switch':
+            try:
+                sess.switch_account(ob['name'])
+            except KeyError:
+                raise ValueError('Unrecognized user name')
+            return { 'reload': True }
+        elif act == 'change_name':
+            newname = scrub_name(ob['name'])
+            existing_account: Optional[Account] = None
+            try:
+                existing_account = find_account_by_name(newname)
+            except KeyError:
+                pass
+            if existing_account is None:
+                account.name = newname
+                account_cache.set_modified(account.id)
+            else:
+                return { 'alert': 'Sorry, that name is already taken.' }
+        elif act == 'change_pw':
+            account.password = ob['pw']
             account_cache.set_modified(account.id)
+            return { 'have_pw': len(account.password) > 0 }
         else:
-            return { 'alert': 'Sorry, that name is already taken.' }
-    elif act == 'change_pw':
-        account.password = ob['pw']
-        account_cache.set_modified(account.id)
-        return { 'have_pw': len(account.password) > 0 }
-    else:
-        raise RuntimeError('unrecognized action')
-    return {}
+            raise RuntimeError('unrecognized action')
+        return {}
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            'alert': repr(e),
+        }
 
 def do_account(query: Mapping[str, Any], session_id: str) -> str:
     sess = sessions.get_or_make_session(session_id)
