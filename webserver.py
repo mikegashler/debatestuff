@@ -11,6 +11,7 @@ from http.cookies import SimpleCookie
 import re
 import posixpath
 import datetime
+import rec
 
 COOKIE_LEN = 12
 
@@ -57,6 +58,10 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         global sws
         sws = self
 
+        ip_address = self.client_address[0]
+        if ip_address in rec.engine.banned_addresses:
+            return
+
         # Parse url
         url_parts = urlparse.urlparse(self.path)
         filename = url_parts.path
@@ -74,6 +79,8 @@ class SimpleWebServer(BaseHTTPRequestHandler):
             if len(session_id) != COOKIE_LEN:
                 print(f'Bad session id {session_id}. Making new one.')
                 session_id = new_session_id()
+            if session_id in rec.engine.banned_sessions:
+                return
         else:
             session_id = new_session_id()
             print(f'No session id. Making new one.')

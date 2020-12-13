@@ -9,6 +9,7 @@ class Session():
         self.id = id
         self.account_ids = account_ids
         self.active_index = active_index
+        self.query: Mapping[str, Any] = {}
 
     # If account_name is the empty string, this will switch to the first account with no password, creating one if necessary
     def switch_account(self, account_name: str) -> None:
@@ -36,11 +37,14 @@ class Session():
         return {
             'accounts': self.account_ids,
             'active_index': self.active_index,
+            'query': self.query,
         }
 
     @staticmethod
     def unmarshal(id: str, ob: Mapping[str, Any]) -> 'Session':
-        return Session(id, ob['accounts'], ob['active_index'])
+        sess = Session(id, ob['accounts'], ob['active_index'])
+        sess.query = ob['query']
+        return sess
 
     def active_account(self) -> accounts.Account:
         return accounts.account_cache[self.account_ids[self.active_index]]

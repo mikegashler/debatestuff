@@ -1118,7 +1118,7 @@ function update_entry(entry)
         if (entry.val === 0)
             el.innerHTML = "Notifications";
         else
-            el.innerHTML = `Notifications&nbsp;(${entry.val})`;
+            el.innerHTML = `Notifications&nbsp;<font color="yellow">(${entry.val})</red>`;
         return false;
     } else {
         let msg = `unrecognized entry action ${entry.act}`;

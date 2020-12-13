@@ -4,19 +4,43 @@
         body {
             background-color: #104030;
             font-family: verdana, tahoma, geneva, sans-serif;
-            font-size: 24px;
         }
 
+	.center
+	{
+		width: 1220px;
+		margin: auto;
+	}
+	.toc
+	{
+		border-style: inset;
+		width: 180px;
+		height: 100%;
+		overflow-y: scroll;
+		background: #d0c8c0;
+		float: left;
+	}
+
+	.body
+	{
+		width: 800px;
+		height: 100%;
+		overflow-y: scroll;
+		background: #f0e8e0;
+		padding-right: 15px;
+		padding-left: 20px;
+	}
+
         div.maincontent {
-            padding: 30px;
+		padding: 30px;
         }
 
         p {
-            line-height: 2.0;
+		line-height: 2.0;
         }
 
         li {
-            line-height: 2.0;
+		line-height: 2.0;
         }
 
         a {
@@ -97,297 +121,439 @@ function show(id)
 </script>
 
 </head><body>
-<br><br>
-<table bgcolor=#dddddd width=800 align=center><tr><td>
 
-<div class="header">
-    <table><tr>
-        <td width=425>
-            <big><big><big><big><big>DebateStuff.com</big></big></big></big></big><br>
-            <div id='tagline'></div>
-        </td>
-        <td>
-        </td>
-    </tr></table>
+
+<div class="center">
+
+	<!-- Table of contents -->
+	<div class="toc" id="toc">
+		<br>
+		<a href="http://gashler.com/mike/blog">Return to menu</a>
+		<br><br>
+		<h2>Topics</h2>
+		<a href="#about_this_site">About this site</a><br>
+		<a href="#debate_tips">Debating tips</a><br>
+	</div>
+
+
+
+	<!-- Main body -->
+	<div class="body" id="body">
+
+
+        <div class="header">
+            <table><tr>
+                <td width=425>
+                    <big><big><big><big><big>DebateStuff.com</big></big></big></big></big><br>
+                    <div id='tagline'></div>
+                </td>
+                <td>
+                </td>
+            </tr></table>
+        </div>
+
+        <div class="maincontent">
+
+        <br><br><br><a id="about_this_site"></a><h2>About this site</h2>
+
+
+        <br><br><h2>What is this site all about?</h2>
+
+        <p><b>Short answer:</b> It's a place to debate stuff.
+        </p>
+
+        <p><b>Longer answer:</b> It's a social media experiment.
+            Social media is known to create "echo chambers" where people form communities that validate each others' bad ideas.
+            Many people believe social media has been destructive for the overall intelligence of humanity.
+            But are there communities of people who care about what is true more than being validated?
+            What if there was a site for those people?
+            What if this site was designed to promote skepticism and critical thinking?
+            Could it leverage diverse social interactions for good instead of evil?
+            Could it promote content that was able to withstand scrutiny instead of content that made people feel validated?
+            Would this site give intellectually minded people a place to share and pursue knowledge?
+            Would it offer a more productive way for nerds to get some of that sweet social-media dopamine?
+            Well, we wanted to know, so we built this site!
+        </p>
+
+
+        <br><br><br><a id="debate_tips"></a><h2>Debating tips</h2>
+
+        <h3>(1) Think long-term:</h3>
+        <ul>
+            <li>The best way to win a debate is to be right.</li>
+            <li>The best way to be right is to be knowledgeable.</li>
+            <li>The best way to gain knowledge is to expose places where you are wrong and fix it.</li>
+            <li>So focus on trying to see how your opponent can be right.</li>
+            <li>And try to see how you can be wrong.</li>
+        </ul>
+
+            <menu>
+                <h3>"Sure, that's great for the long-term, but I want to win this debate right now, even if I'm wrong.
+                    Got any tips to help me with that?"</h3>
+                <ul>
+                    <li>No.</li>
+                    <li>Your goal is stupid.</li>
+                    <li>Get a better goal.</li>
+                </ul>
+            </menu>
+
+        <h3>(2) Always find something valid to explicitly acknowledge:</h3>
+        <ul>
+            <li>It looks strong when you form a habit of acknowledging some component of validity in your opponents comment before rebutting the remainder.</li>
+            <li>It looks weak when you start by immediately pushing back.
+                That comes across as if you are at the end of your arguments and you absolutely have to win this point.</li>
+            <li>When people feel their points have been understood, they are more likely to listen to yours.</li>
+            <li>Even if your opponent never reciprocates, you have set a better example.</li>
+        </ul>
+
+            <menu>
+                <h3>"But what if my opponent makes no valid points?"</h3>
+                <ul>
+                    <li>Oh, come on! That really says more about you than your opponent.</li>
+                    <li>Look harder.</li>
+                    <li>If you are really spending your time debating a complete idiot, who is bahaving the most out of character?</li>
+                </ul>
+                <center><img src="slapping_monkey.jpg"></center>
+            </menu>
+
+        <h3>(3) Take the time to be understanding:</h3>
+        <ul>
+            <li>Understanding people learn more.</li>
+            <li>Even smart people were once ignorant.</li>
+            <li>People who listen make a bigger impact.</li>
+            <li>Your expressions probably aren't as well-articulated as you imagine. You need people to be understanding too.</li>
+            <li>We're all in this together. So at least be nice.</li>
+        </ul>
+
+            <menu>
+                <h3>"How can I be understanding of blatant ignorance?"</h3>
+                <ul>
+                    <li>Let it be. Don't feed the trolls. If you don't have anything nice to say,
+                        don't say anything at all. Etc.</li>
+                    <li>Reducing your opponent to absurdity is the same as a victory.
+                        So accept your victory with grace.
+                        Just thank your opponent and disappear.</li>
+                    <li>Sometimes the strongest rebuttal is to leave a stupid argument hanging there
+                        to represent the person who posted it. "<a href="https://en.wikipedia.org/wiki/Res_ipsa_loquitur">Res ipsa loquitur</a>".
+                        Any response you might give would only soften that critical blow against your opponent.</li>
+                </ul>
+            </menu>
+
+
+
+        <br><br><h2>How to rate various logical fallacies</h2>
+
+        <table border=1 cellpadding=10>
+            <tr><td><b><u>Rating</u></b></td><td><b><u>Logical Fallacy</u></b></td></tr>
+            <tr><td rowspan=5>Impolite</td><td>Ad hominem</td></tr>
+                <tr><td>Poisoning the well</td></tr>
+                <tr><td>Unnecessary rudeness</td></tr>
+                <tr><td>Besmirching opponent</td></tr>
+                <tr><td>Public shaming</td></tr>
+            <tr><td rowspan=5>Straw-man</td><td>Telling opponents what their position is</td></tr>
+                <tr><td>Tilting at windmills</td></tr>
+                <tr><td>Slippery slope</td></tr>
+                <tr><td>Extremify one's opponent, but not one's self</td></tr>
+                <tr><td>Bad-faith misrepresentations of opponent</td></tr>
+            <tr><td rowspan=6>Preaching</td><td>Claims without reasons or credible evidence</td></tr>
+                <tr><td>"Trust me"</td></tr>
+                <tr><td>Speaking for God</td></tr>
+                <tr><td>Threats</td></tr>
+                <tr><td>Begging the question</td></tr>
+                <tr><td>Condescending ("It's too complex to explain to you, but I'm right")</td></tr>
+            <tr><td rowspan=4>Anecdotal</td><td>Survivor bias</td></tr>
+                <tr><td>Association fallacy</td></tr>
+                <tr><td>Witnesses as only evidence of extraordinary events</td></tr>
+                <tr><td>Confirmation bias</td></tr>
+            <tr><td rowspan=7>Leaps</td><td>Arrives at a conclusion without reasons to lead there</td></tr>
+                <tr><td>Pulls conclusions out of nowhere</td></tr>
+                <tr><td>Divine fallacy / Existential fallacy</td></tr>
+                <tr><td>Correlation implies causation</td></tr>
+                <tr><td>Circular reasoning</td></tr>
+                <tr><td>Faulty analogy, non-sequitur, does not follow</td></tr>
+                <tr><td>Abandons one's own assumptions or premises</td></tr>
+            <tr><td rowspan=7>Closed minded</td><td>Appeal to ignorance</td></tr>
+                <tr><td>"You have no proof, so your position can be dismissed"</td></tr>
+                <tr><td>Cherry picking (Evaluate evidence based on whether it leads to desired conclusion)</td></tr>
+                <tr><td>Dogmatism</td></tr>
+                <tr><td>Pooh pooh</td></tr>
+                <tr><td>"I'm the only one who can see clearly"</td></tr>
+                <tr><td>Fallacy of exclusion ("Men with red hair and size 9 shoes are vulnerable to confirmation bias, so we cannot trust them")</td></tr>
+            <tr><td rowspan=2>Burden Shifting</td><td>"Convince me (...while I roll my eyes at everything you say)"</td></tr>
+                <tr><td>Assume complex explanation until simpler one is proven</td></tr>
+            <tr><td rowspan=3>False choice</td><td>False dichotomy / False dilemma</td></tr>
+                <tr><td>Excluded middle fallacy, Black-or-white thinking</td></tr>
+                <tr><td>False conflict (supposed conflict between non-mutually-exclusive propositions)</td></tr>
+            <tr><td rowspan=3>Appeal</td><td>Argumentum ad populum / Band wagon fallacy</td></tr>
+                <tr><td>Challenge credentials in response to logical reasoning</td></tr>
+                <tr><td>Appeal to authority / Celebrity quotes in lieu of an argument</td></tr>
+            <tr><td rowspan=5>Is-ought</td><td>Appeal to consequences / appeal to fear</td></tr>
+                <tr><td>Imply beliefs make one moral or immoral</td></tr>
+                <tr><td>Suggests bad behaviors imply false beliefs</td></tr>
+                <tr><td>Moralistic fallacy</td></tr>
+                <tr><td>"My conclusions are preferable, therefore they are correct"</td></tr>
+            <tr><td rowspan=8>Dumping</td><td>Gish Gallop (A rapid-fire list of bad arguments)</td></tr>
+                <tr><td>Passionate intensity without any meaningful content. Appeal to emotions</td></tr>
+                <tr><td>Content treadmill (Rebuts with unsummarized canned material)</td></tr>
+                <tr><td>Dumpster argument ("Please dig through this dumpster of bad arguments until you are convinced")</td></tr>
+                <tr><td>Rambling / Filibuster</td></tr>
+                <tr><td>A long list of many weak points</td></tr>
+                <tr><td>Links to a video or long article in lieu of an argument</td></tr>
+                <tr><td>"I lack time to fully explain, so read this book"</td></tr>
+            <tr><td rowspan=5>Vague conviction</td><td>Certain of something with a name but no clear definition</td></tr>
+                <tr><td>More attachment to specific terms than their meanings</td></tr>
+                <tr><td>Inflexible with terms</td></tr>
+                <tr><td>Conflates naming a phenomenon with explaining it</td></tr>
+                <tr><td>Supposes anything from a particular source must be true</td></tr>
+            <tr><td rowspan=4>Word games</td><td>Equivocation</td></tr>
+                <tr><td>Defines something into existence</td></tr>
+                <tr><td>"Proof" that would work just as well with imaginary things</td></tr>
+                <tr><td>Ontological arguments</td></tr>
+            <tr><td rowspan=4>Unclear relevance</td><td>off-topic</td></tr>
+                <tr><td>Miscategorized</td></tr>
+                <tr><td>Word salad</td></tr>
+                <tr><td>SPAM</td></tr>
+        <!--
+            <tr><td rowspan=8>Not covered</td><td>Moving goal-posts</td></tr>
+                <tr><td>Texas sharp-shooter</td></tr>
+                <tr><td>Appeal to probability</td></tr>
+                <tr><td>Argument from fallacy</td></tr>
+                <tr><td>Homunculus fallacy</td></tr>
+                <tr><td>Infinite regress</td></tr>
+                <tr><td>No true Scotsman</td></tr>
+                <tr><td>Historian's fallacy</td></tr>
+        -->
+        </table>
+
+
+
+        <br><br><h2>Q and A about the rating/filtering system</h2>
+        <ol>
+            <li><b>How should I rate fallacies not listed in the chart of logical fallacies?</b><br>
+                <p>
+                    Don't rate them at all. Discuss them!
+                    We're not trying to preempt all discussion by having a categorization for every possible mistake.
+                    These are just the most common ones that tend to sabotage communication.
+                    If you encounter another fallacy, just kindly tell the other person about it.
+                </p>
+            </li>
+
+            <li><b>How should I rate comments that take no position at all, such as clarifying questions, compliments, greetings, or funny quips?</b><br>
+                <p>
+                    The purpose of rating is to help people find arguments that interest them.
+                    So there is no need to rate compliments or greetings that are really only intended for a specific person anyway.
+                    For clarifying question that help to advance a discussion, "Reasonable" would probably be a suitable rating.
+                    If you like funny quips, rate them "Interesting".
+                    If you don't, "Impolite" or "Unclear relevance" might be more appropriate.
+                    You decide. As long as you are somewhat consistent, your ratings are helpful.
+                </p>
+            </li>
+
+            <li><b>What about lies, deception, blatant dishonesty, fake news, etc.?</b><br>
+                <p>
+                    Smearing opponents is clearly impolite.
+                    If it is inaccurate, it falls under straw man too.
+                    And if it comes without credible evidence, that's also preaching and leaping.
+                    If it is baseless and inflammatory, that's dumping.
+                    So check all the boxes that apply.
+                </p>
+            </li>
+
+            <li><b>Is there a way for people to find out who rated their arguments?</b><br>
+                <p>
+                    No. (Well, technically I suppose a highly-determined person could hire a skilled
+                    hacker to plant a keystroke sniffer on your computer, or something crazy like that.
+                    But we provide no mechanism for exposing who rated what.)
+                </p>
+            </li>
+
+            <li><b>Is it okay to rate someone's comment "impolite" just because they have an offensive profile picture?</b><br>
+                <p>
+                    Yes. Your negative ratings will spare people who rate the way you do (and who have the A.I. turned on) from seeing those posts.
+                    And people who rate differently from you will hardly be affected.
+                    So you should rate however you want to!
+                </p>
+            </li>
+
+            <li><b>Doesn't the A.I. promote echo-chambers?</b><br>
+                <p>
+                    Yes, it does promote echo-chambers for dogmatic people who let their biases influence their ratings,
+                    but it can actually reduce bias for people who moderate objectively.
+                    As an example, consider how science relies on peer review, rather than random person review.
+                    Turning to peer experts instead of random people is a very productive bias.
+                    Why? Because experts have a culture of being objective and critical.
+                    By contrast, random people would not even know how to find legitimate objections to a scientist's work.
+                    Sometimes, scientists are accused of living in echo chambers
+                    because they only entertain criticism from other experts who already accept with their core beliefs.
+                    Yet, they actually find fewer legitimate objections when they consult the general public.
+                </p>
+
+                <p>
+                    Similarly, the purpose of the A.I. is to help debaters to find intelligent arguments that challenge their own beliefs.
+                    But it only works for people who moderate objectively.
+                    People who let their biases influence their ratings will indeed create counter-productive own echo chambers.
+                    If turning the A.I. off seems to improve the quality of the arguments you see,
+                    that's a sign that have created an echo chamber for yourself.
+                    If that occurs, you should probably consider resetting your profile.
+                </p>
+            </li>
+
+            <li><b>I made a brilliant response to a stupid remark. Yet, it seems like no one is seeing my witty retort. What's the deal?</b><br>
+                <p>
+                    Responses are not shown until people lower their thresholds enough to see the original comment too.
+                    And that's deliberate.
+                </p>
+
+                <p>
+                    We know it's lots of fun to bash people who make poor comments, but that's not what this site is about.
+                    We promote debates that are strong on both sides.
+                    So no, we are never going to start highlighting great responses to stupid comments.
+                    If you want to be heard, spend your time responding to intelligent comments, and stop wasting time on the easy ones.
+                </p>
+
+                <p>
+                    Incidentally, this means if you rate your opponents badly, you are implicitly burying your own responses.
+                    That's also deliberate.
+                    Our system is calculated to promote intelligent and respectful debate.
+                    Deal with it.
+                </p>
+            </li>
+
+            <li><b>That moderation system seems rather complex. Is that really necessary?</b><br>
+                <p>
+                    That's the whole point of this site.
+                    If it turns off people who prefer not to think deeply, then it is working precisely as intended.
+                </p>
+            </li>
+
+            <li><b>This site isn't really working for me. Are there any alternatives?</b><br>
+                <p>
+                    Have you tried <a href="http://kialo.com">Kialo</a>?<br>
+                    There's also <a href="reddit.com">Reddit</a>.
+                </p>
+            </li>
+
+
+        </div>
+
+
+
+
+
+
+
+
+	</div>
 </div>
 
-<div class="maincontent">
-<br><br>
-<h1>The Handbook</h1>
-
-<br><br><h2>What is this site all about?</h2>
-
-<p><b>Short answer:</b> It's a place to debate stuff.
-</p>
-
-<p><b>Longer answer:</b> It's a social media experiment.
-    Social media is known to create "echo chambers" where people form communities that validate each others' bad ideas.
-    Many people believe social media has been destructive for the overall intelligence of humanity.
-    But are there communities of people who care about what is true more than being validated?
-    What if there was a site for those people?
-    What if this site was designed to promote skepticism and critical thinking?
-    Could it leverage diverse social interactions for good instead of evil?
-    Could it promote content that was able to withstand scrutiny instead of content that made people feel validated?
-    Would this site give intellectually minded people a place to share and pursue knowledge?
-    Would it offer a more productive way for nerds to get some of that sweet social-media dopamine?
-    Well, we wanted to know, so we built this site!
-</p>
-
-<br><br><h2>Debating Tips</h2>
-
-<h3>(1) Think long-term:</h3>
-<ul>
-    <li>The best way to win a debate is to be right.</li>
-    <li>The best way to be right is to be knowledgeable.</li>
-    <li>The best way to gain knowledge is to expose places where you are wrong and fix it.</li>
-    <li>So focus on trying to see how your opponent can be right.</li>
-    <li>And try to see how you can be wrong.</li>
-</ul>
-
-    <menu>
-        <h3>"Sure, that's great for the long-term, but I want to win this debate right now, even if I'm wrong.
-            Got any tips to help me with that?"</h3>
-        <ul>
-            <li>No.</li>
-            <li>Your goal is stupid.</li>
-            <li>Get a better goal.</li>
-        </ul>
-    </menu>
-
-<h3>(2) Always find something valid to explicitly acknowledge:</h3>
-<ul>
-    <li>It looks strong when you form a habit of acknowledging some component of validity in your opponents comment before rebutting the remainder.</li>
-    <li>It looks weak when you start by immediately pushing back.
-        That comes across as if you are at the end of your arguments and you absolutely have to win this point.</li>
-    <li>When people feel their points have been understood, they are more likely to listen to yours.</li>
-    <li>Even if your opponent never reciprocates, you have set a better example.</li>
-</ul>
-
-    <menu>
-        <h3>"But what if my opponent makes no valid points?"</h3>
-        <ul>
-            <li>Oh, come on! That really says more about you than your opponent.</li>
-            <li>Look harder.</li>
-            <li>If you are really spending your time debating a complete idiot, who is bahaving the most out of character?</li>
-        </ul>
-        <center><img src="slapping_monkey.jpg"></center>
-    </menu>
-
-<h3>(3) Take the time to be understanding:</h3>
-<ul>
-    <li>Understanding people learn more.</li>
-    <li>Even smart people were once ignorant.</li>
-    <li>People who listen make a bigger impact.</li>
-    <li>Your expressions probably aren't as well-articulated as you imagine. You need people to be understanding too.</li>
-    <li>We're all in this together. So at least be nice.</li>
-</ul>
-
-    <menu>
-        <h3>"How can I be understanding of blatant ignorance?"</h3>
-        <ul>
-            <li>Let it be. Don't feed the trolls. If you don't have anything nice to say,
-                don't say anything at all. Etc.</li>
-            <li>Reducing your opponent to absurdity is the same as a victory.
-                So accept your victory with grace.
-                Just thank your opponent and disappear.</li>
-            <li>Sometimes the strongest rebuttal is to leave a stupid argument hanging there
-                to represent the person who posted it. "<a href="https://en.wikipedia.org/wiki/Res_ipsa_loquitur">Res ipsa loquitur</a>".
-                Any response you might give would only soften that critical blow against your opponent.</li>
-        </ul>
-    </menu>
 
 
-
-<br><br><h2>How to rate various logical fallacies</h2>
-
-<table border=1 cellpadding=10>
-    <tr><td><b><u>Rating</u></b></td><td><b><u>Logical Fallacy</u></b></td></tr>
-    <tr><td rowspan=5>Impolite</td><td>Ad hominem</td></tr>
-        <tr><td>Poisoning the well</td></tr>
-        <tr><td>Unnecessary rudeness</td></tr>
-        <tr><td>Besmirching opponent</td></tr>
-        <tr><td>Public shaming</td></tr>
-    <tr><td rowspan=5>Straw-man</td><td>Telling opponents what their position is</td></tr>
-        <tr><td>Tilting at windmills</td></tr>
-        <tr><td>Slippery slope</td></tr>
-        <tr><td>Extremify one's opponent, but not one's self</td></tr>
-        <tr><td>Bad-faith misrepresentations of opponent</td></tr>
-    <tr><td rowspan=6>Preaching</td><td>Claims without reasons or credible evidence</td></tr>
-        <tr><td>"Trust me"</td></tr>
-        <tr><td>Speaking for God</td></tr>
-        <tr><td>Threats</td></tr>
-        <tr><td>Begging the question</td></tr>
-        <tr><td>Condescending ("It's too complex to explain to you, but I'm right")</td></tr>
-    <tr><td rowspan=4>Anecdotal</td><td>Survivor bias</td></tr>
-        <tr><td>Association fallacy</td></tr>
-        <tr><td>Witnesses as only evidence of extraordinary events</td></tr>
-        <tr><td>Confirmation bias</td></tr>
-    <tr><td rowspan=7>Leaps</td><td>Arrives at a conclusion without reasons to lead there</td></tr>
-        <tr><td>Pulls conclusions out of nowhere</td></tr>
-        <tr><td>Divine fallacy / Existential fallacy</td></tr>
-        <tr><td>Correlation implies causation</td></tr>
-        <tr><td>Circular reasoning</td></tr>
-        <tr><td>Faulty analogy, non-sequitur, does not follow</td></tr>
-        <tr><td>Abandons one's own assumptions or premises</td></tr>
-    <tr><td rowspan=7>Closed minded</td><td>Appeal to ignorance</td></tr>
-        <tr><td>"You have no proof, so your position can be dismissed"</td></tr>
-        <tr><td>Cherry picking (Evaluate evidence based on whether it leads to desired conclusion)</td></tr>
-        <tr><td>Dogmatism</td></tr>
-        <tr><td>Pooh pooh</td></tr>
-        <tr><td>"I'm the only one who can see clearly"</td></tr>
-        <tr><td>Fallacy of exclusion ("Men with red hair and size 9 shoes are vulnerable to confirmation bias, so we cannot trust them")</td></tr>
-    <tr><td rowspan=2>Burden Shifting</td><td>"Convince me (...while I roll my eyes at everything you say)"</td></tr>
-        <tr><td>Assume complex explanation until simpler one is proven</td></tr>
-    <tr><td rowspan=3>False choice</td><td>False dichotomy / False dilemma</td></tr>
-        <tr><td>Excluded middle fallacy, Black-or-white thinking</td></tr>
-        <tr><td>False conflict (supposed conflict between non-mutually-exclusive propositions)</td></tr>
-    <tr><td rowspan=3>Appeal</td><td>Argumentum ad populum / Band wagon fallacy</td></tr>
-        <tr><td>Challenge credentials in response to logical reasoning</td></tr>
-        <tr><td>Appeal to authority / Celebrity quotes in lieu of an argument</td></tr>
-    <tr><td rowspan=5>Is-ought</td><td>Appeal to consequences / appeal to fear</td></tr>
-        <tr><td>Imply beliefs make one moral or immoral</td></tr>
-        <tr><td>Suggests bad behaviors imply false beliefs</td></tr>
-        <tr><td>Moralistic fallacy</td></tr>
-        <tr><td>"My conclusions are preferable, therefore they are correct"</td></tr>
-    <tr><td rowspan=8>Dumping</td><td>Gish Gallop (A rapid-fire list of bad arguments)</td></tr>
-        <tr><td>Passionate intensity without any meaningful content. Appeal to emotions</td></tr>
-        <tr><td>Content treadmill (Rebuts with unsummarized canned material)</td></tr>
-        <tr><td>Dumpster argument ("Please dig through this dumpster of bad arguments until you are convinced")</td></tr>
-        <tr><td>Rambling / Filibuster</td></tr>
-        <tr><td>A long list of many weak points</td></tr>
-        <tr><td>Links to a video or long article in lieu of an argument</td></tr>
-        <tr><td>"I lack time to fully explain, so read this book"</td></tr>
-    <tr><td rowspan=5>Vague conviction</td><td>Certain of something with a name but no clear definition</td></tr>
-        <tr><td>More attachment to specific terms than their meanings</td></tr>
-        <tr><td>Inflexible with terms</td></tr>
-        <tr><td>Conflates naming a phenomenon with explaining it</td></tr>
-        <tr><td>Supposes anything from a particular source must be true</td></tr>
-    <tr><td rowspan=4>Word games</td><td>Equivocation</td></tr>
-        <tr><td>Defines something into existence</td></tr>
-        <tr><td>"Proof" that would work just as well with imaginary things</td></tr>
-        <tr><td>Ontological arguments</td></tr>
-    <tr><td rowspan=4>Unclear relevance</td><td>off-topic</td></tr>
-        <tr><td>Miscategorized</td></tr>
-        <tr><td>Word salad</td></tr>
-        <tr><td>SPAM</td></tr>
-<!--
-    <tr><td rowspan=8>Not covered</td><td>Moving goal-posts</td></tr>
-        <tr><td>Texas sharp-shooter</td></tr>
-        <tr><td>Appeal to probability</td></tr>
-        <tr><td>Argument from fallacy</td></tr>
-        <tr><td>Homunculus fallacy</td></tr>
-        <tr><td>Infinite regress</td></tr>
-        <tr><td>No true Scotsman</td></tr>
-        <tr><td>Historian's fallacy</td></tr>
--->
-</table>
-
-
-
-<br><br><h2>Q and A about the rating/filtering system</h2>
-<ol>
-    <li><b>How should I rate fallacies not listed in the chart of logical fallacies?</b><br>
-        <p>
-            Don't rate them at all. Discuss them!
-            We're not trying to preempt all discussion by having a categorization for every possible mistake.
-            These are just the most common ones that tend to sabotage communication.
-            If you encounter another fallacy, just kindly tell the other person about it.
-        </p>
-    </li>
-
-    <li><b>How should I rate comments that take no position at all, such as clarifying questions, compliments, greetings, or funny quips?</b><br>
-        <p>
-            The purpose of rating is to help people find arguments that interest them.
-            So there is no need to rate compliments or greetings that are really only intended for a specific person anyway.
-            For clarifying question that help to advance a discussion, "Reasonable" would probably be a suitable rating.
-            If you like funny quips, rate them "Interesting".
-            If you don't, "Impolite" or "Unclear relevance" might be more appropriate.
-            You decide. As long as you are somewhat consistent, your ratings are helpful.
-        </p>
-    </li>
-
-    <li><b>What about lies, deception, blatant dishonesty, fake news, etc.?</b><br>
-        <p>
-            Smearing opponents is clearly impolite.
-            If it is inaccurate, it falls under straw man too.
-            And if it comes without credible evidence, that's also preaching and leaping.
-            If it is baseless and inflammatory, that's dumping.
-            So check all the boxes that apply.
-        </p>
-    </li>
-
-    <li><b>Is there a way for people to find out who rated their arguments?</b><br>
-        <p>
-            No. (Well, technically I suppose a highly-determined person could hire a skilled
-            hacker to plant a keystroke sniffer on your computer, or something crazy like that.
-            But we provide no mechanism for exposing who rated what.)
-        </p>
-    </li>
-
-    <li><b>Is it okay to rate someone's comment "impolite" just because they have an offensive profile picture?</b><br>
-        <p>
-            Yes. Your negative ratings will spare people who rate the way you do (and who have the A.I. turned on) from seeing those posts.
-            And people who rate differently from you will hardly be affected.
-            So you should rate however you want to!
-        </p>
-    </li>
-
-    <li><b>Doesn't the A.I. promote echo-chambers?</b><br>
-        <p>
-            Yes, it does promote echo-chambers for dogmatic people who let their biases influence their ratings,
-            but it can actually reduce bias for people who moderate objectively.
-            As an example, consider how science relies on peer review, rather than random person review.
-            Turning to peer experts instead of random people is a very productive bias.
-            Why? Because experts have a culture of being objective and critical.
-            By contrast, random people would not even know how to find legitimate objections to a scientist's work.
-            Sometimes, scientists are accused of living in echo chambers
-            because they only entertain criticism from other experts who already accept with their core beliefs.
-            Yet, they actually find fewer legitimate objections when they consult the general public.
-        </p>
-
-        <p>
-            Similarly, the purpose of the A.I. is to help debaters to find intelligent arguments that challenge their own beliefs.
-            But it only works for people who moderate objectively.
-            People who let their biases influence their ratings will indeed create counter-productive own echo chambers.
-            If turning the A.I. off seems to improve the quality of the arguments you see,
-            that's a sign that have created an echo chamber for yourself.
-            If that occurs, you should probably consider resetting your profile.
-        </p>
-    </li>
-
-    <li><b>I made a brilliant response to a stupid remark. Yet, it seems like no one is seeing my witty retort. What's the deal?</b><br>
-        <p>
-            Responses are not shown until people lower their thresholds enough to see the original comment too.
-            And that's deliberate.
-        </p>
-
-        <p>
-            We know it's lots of fun to bash people who make poor comments, but that's not what this site is about.
-            We promote debates that are strong on both sides.
-            So no, we are never going to start highlighting great responses to stupid comments.
-            If you want to be heard, spend your time responding to intelligent comments, and stop wasting time on the easy ones.
-        </p>
-
-        <p>
-            Incidentally, this means if you rate your opponents badly, you are implicitly burying your own responses.
-            That's also deliberate.
-            Our system is calculated to promote intelligent and respectful debate.
-            Deal with it.
-        </p>
-    </li>
-
-    <li><b>That moderation system seems rather complex. Is that really necessary?</b><br>
-        <p>
-            That's the whole point of this site.
-            If it turns off people who prefer not to think deeply, then it is working precisely as intended.
-        </p>
-    </li>
-
-</div>
 <script type="text/javascript">
 init();
+
+
+var all_links = [];
+var all_anchors = [];
+var current_millis = new Date().getTime();
+var current_doc_top = 0;
+var current_anchor = null;
+
+function find_links()
+{
+	var prev = "";
+	var a_tags = document.getElementsByTagName('a');
+	for(var i = 0; i < a_tags.length; i++)
+	{
+		var l = a_tags[i];
+		if(l.href && l.href.localeCompare(prev) != 0 && l.href.indexOf("#") >= 0)
+		{
+			all_links.push(l);
+			prev = l.href;
+		}
+	}
+}
+
+function on_change_anchor(id)
+{
+	for(var i = 0; i < all_links.length; i++)
+	{
+		var hashpos = all_links[i].href.indexOf("#");
+		var anch = all_links[i].href.substring(hashpos + 1);
+		if(anch.localeCompare(id) == 0)
+		{
+			all_links[i].style.backgroundColor = "cyan";
+		}
+		else
+		{
+			all_links[i].style.backgroundColor = "#d0c8c0";
+		}
+	}
+}
+
+function find_anchors()
+{
+	var prev = "";
+	var a_tags = document.getElementsByTagName('a');
+	for(var i = 0; i < a_tags.length; i++)
+	{
+		var l = a_tags[i];
+		if(l.id && !l.href && l.id.localeCompare(prev) != 0)
+		{
+			all_anchors.push(l);
+			prev = l.id;
+		}
+	}
+}
+
+
+function get_current_anchor()
+{
+	var calibrate = 150; // The number of pixels from the top where the current article is determined
+	var best_anchor = null;
+	var best_top = 0;
+	for(var i = 0; i < all_anchors.length; i++)
+	{
+		var l = all_anchors[i];
+		if(l.offsetTop <= current_doc_top + calibrate && l.offsetTop > best_top)
+		{
+			best_top = l.offsetTop;
+			best_anchor = l;
+		}
+	}
+	return best_anchor;
+}
+
+function on_scroll()
+{
+	elBody = document.getElementById("body");
+	var doc_top = elBody.scrollTop;
+	var millis = new Date().getTime();
+	if(Math.abs(doc_top - current_doc_top) > 200 && Math.abs(millis - current_millis) > 200)
+	{
+		current_millis = millis;
+		current_doc_top = doc_top;
+		var anchor = get_current_anchor();
+		if(anchor != current_anchor)
+		{
+			current_anchor = anchor;
+			on_change_anchor(current_anchor.id);
+		}
+	}
+
+	var a = get_current_anchor();
+	if(a != lastanchor)
+	{
+		alert(a.href);
+		lastanchor = a;
+	}
+}
+
+find_links(); // Find all the TOC links
+find_anchors(); // Find all the body anchors
+
+elBody = document.getElementById("body");
+elBody.onscroll=on_scroll;
+
 </script>
 
-</td></tr></table>
-<br><br><br><br><br><br><br><br>
 </body></html>

@@ -115,7 +115,6 @@ with open('account.html') as f:
 def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
     try:
         sess = sessions.get_or_make_session(session_id)
-        account = sess.active_account()
         act = ob['act']
         if act == 'logout':
             sess.switch_account('')
@@ -130,18 +129,24 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
             newname = scrub_name(ob['name'])
             existing_account: Optional[Account] = None
             try:
-                existing_account = find_account_by_name(newname)
+                existing_account = find_account_by_name(newname) # flushes accounts, so the account must be retrieved after this line
             except KeyError:
                 pass
             if existing_account is None:
+                account = sess.active_account()
                 account.name = newname
                 account_cache.set_modified(account.id)
+                reloaded = account_cache[account.id]
+                reloaded_again = account_cache[account.id]
             else:
                 return { 'alert': 'Sorry, that name is already taken.' }
         elif act == 'change_pw':
+            account = sess.active_account()
             account.password = ob['pw']
             account_cache.set_modified(account.id)
             return { 'have_pw': len(account.password) > 0 }
+        elif act == 'drop_account':
+            pass
         else:
             raise RuntimeError('unrecognized action')
         return {}
@@ -154,14 +159,24 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
 def do_account(query: Mapping[str, Any], session_id: str) -> str:
     sess = sessions.get_or_make_session(session_id)
     account = sess.active_account()
-    accounts = [ account_cache[id] for id in sess.account_ids ]
+    if 'id' in query:
+        account_to_show = account_cache[query['id']]
+    else:
+        account_to_show = account
+    if account_to_show is account:
+        accounts = [ account_cache[id] for id in sess.account_ids ]
+    else:
+        accounts = []
     globals = [
         'let session_id = \'', session_id, '\';\n',
-        'let username = \'', account.name, '\';\n',
-        'let profile_pic = \'', account.image, '\';\n',
-        'let have_pw = ', 'true' if len(account.password) > 0 else 'false', ';\n',
+        'let admin = ', 'true' if account.admin else 'false', ';\n',
+        'let isself = ', 'true' if account is account_to_show else 'false', ';\n',
+        'let username = \'', account_to_show.name, '\';\n',
+        'let profile_pic = \'', account_to_show.image, '\';\n',
+        'let have_pw = ', 'true' if len(account.password) > 0 or not account_to_show is account else 'false', ';\n',
         'let account_names = ', str([a.name for a in accounts]), ';\n',
         'let account_images = ', str([a.image for a in accounts]), ';\n',
+        'let prev_query = ', str(sess.query), ';\n',
     ]
     updated_account_page = account_page.replace('//<globals>//', ''.join(globals), 1)
     return updated_account_page

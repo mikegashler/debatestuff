@@ -73,6 +73,43 @@ let tag_lines = [
     "As the pen is to the sword,<br>so debate is to war.",
 ];
 
+var Sha256={};Sha256.hash=function(msg){msg=msg.utf8Encode();
+var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+msg+=String.fromCharCode(0x80);var l=msg.length/4+2;var N=Math.ceil(l/16);var M=new Array(N);
+for(var i=0;i<N;i++){M[i]=new Array(16);for(var j=0;j<16;j++){
+M[i][j]=(msg.charCodeAt(i*64+j*4)<<24)|(msg.charCodeAt(i*64+j*4+1)<<16)|
+(msg.charCodeAt(i*64+j*4+2)<<8)|(msg.charCodeAt(i*64+j*4+3));}}
+M[N-1][14]=((msg.length-1)*8) / Math.pow(2,32);M[N-1][14]=Math.floor(M[N-1][14]);
+M[N-1][15]=((msg.length-1)*8)&0xffffffff;var W=new Array(64);var a,b,c,d,e,f,g,h;
+for(var i=0;i<N;i++){for(var t=0;t<16;t++) W[t]=M[i][t];
+for(var t=16;t<64;t++) W[t]=(Sha256.B1(W[t-2])+W[t-7]+Sha256.B0(W[t-15])+W[t-16])&0xffffffff;
+a=H[0];b=H[1];c=H[2];d=H[3];e=H[4];f=H[5];g=H[6];h=H[7];for(var t=0;t<64;t++){
+var T1=h+Sha256.A1(e)+Sha256.Ch(e,f,g)+K[t]+W[t];var T2=Sha256.A0(a)+Sha256.Maj(a,b,c);
+h=g;g=f;f=e;e=(d+T1)&0xffffffff;d=c;c=b;b=a;a=(T1+T2)&0xffffffff;}
+H[0]=(H[0]+a)&0xffffffff;H[1]=(H[1]+b)&0xffffffff;H[2]=(H[2]+c)&0xffffffff;H[3]=(H[3]+d)&0xffffffff;
+H[4]=(H[4]+e)&0xffffffff;H[5]=(H[5]+f)&0xffffffff;H[6]=(H[6]+g)&0xffffffff;H[7]=(H[7]+h)&0xffffffff;}
+return Sha256.toHex(H[0])+Sha256.toHex(H[1])+Sha256.toHex(H[2])+Sha256.toHex(H[3])+
+Sha256.toHex(H[4])+Sha256.toHex(H[5])+Sha256.toHex(H[6])+Sha256.toHex(H[7]);};
+Sha256.RO=function(n,x){return (x>>>n)|(x<<(32-n));};
+Sha256.A0=function(x){return Sha256.RO(2, x)^Sha256.RO(13,x)^Sha256.RO(22,x);};
+Sha256.A1=function(x){return Sha256.RO(6, x)^Sha256.RO(11,x)^Sha256.RO(25,x);};
+Sha256.B0=function(x){return Sha256.RO(7, x)^Sha256.RO(18,x)^(x>>>3);};
+Sha256.B1=function(x){return Sha256.RO(17,x)^Sha256.RO(19,x)^(x>>>10);};
+Sha256.Ch=function(x,y,z){return (x&y)^(~x&z);};Sha256.Maj=function(x,y,z){return (x&y)^(x&z)^(y&z);};
+Sha256.toHex=function(n){var s="",v;for(var i=7;i>=0;i--){v=(n>>>(i*4))&0xf;s+=v.toString(16);}
+return s;};if(typeof String.prototype.utf8Encode=='undefined'){
+String.prototype.utf8Encode=function(){return unescape(encodeURIComponent(this));};}
+if(typeof String.prototype.utf8Decode=='undefined'){String.prototype.utf8Decode=function()
+{try{return decodeURIComponent(escape(this));}catch(e){return this;}};}
+
 function httpPost(url, payload, callback)
 {
     let request = new XMLHttpRequest();
@@ -96,15 +133,15 @@ function httpPost(url, payload, callback)
     request.send(payload);
 }
 
-function show_or_hide_logout()
+function show_or_hide_new_account_div()
 {
-    let logout_div = document.getElementById('logout_div');
+    let new_account_div = document.getElementById('new_account_div');
     let no_pw_warning = document.getElementById('no_pw_warning');
-    if (have_pw) {
-        logout_div.style.display = 'inline-block';
+    if (isself && have_pw) {
+        new_account_div.style.display = 'inline-block';
         no_pw_warning.style.display = 'none';
     } else {
-        logout_div.style.display = 'none';
+        new_account_div.style.display = 'none';
         no_pw_warning.style.display = 'inline-block';
     }
 }
@@ -124,18 +161,27 @@ function incoming(response)
     }
     if (ob.have_pw !== undefined) {
         have_pw = ob.have_pw;
-        show_or_hide_logout();
+        show_or_hide_new_account_div();
     }
     if (ob.reload === true) {
         location.reload();
     }
 }
 
-function logout()
+function make_new_account()
 {
     outgoing({
         'act': 'logout',
     })
+}
+
+function drop_account(index)
+{
+    outgoing({
+        'act': 'drop_account',
+        'index': i,
+    })
+    location.reload();
 }
 
 function switch_account(account_name)
@@ -168,38 +214,88 @@ function init()
     let tagline = document.getElementById('tagline');
     tagline.innerHTML = tag_lines[Math.floor(Math.random() * tag_lines.length)];
 
-    let profile_pic_tag = document.getElementById('profile_pic')
-    profile_pic_tag.src = profile_pic;
-    let username_textbox = document.getElementById('username');
-    username_textbox.value = username;
+    // Display basic info
+    let s = []
+    s.push(`<h1>${isself ? 'Your account' : 'Another user'}</h1>`);
+    if (isself) {
+        s.push('<p>(<b>Warning:</b> Do not hand out personally identifying information on the Internet.');
+        s.push('We use A.I.. You don\'t want it showing up at your house (j/k).');
+        s.push('Seriously, though, pseudonymns are cool here. This is a free web service,');
+        s.push('not a bank account or a government program. Keep control over your personal information.)</p>');
+    }
+    s.push('<br><table><tr>');
+    s.push(`<td>${isself ? 'Change your p' : 'P'}rofile picture: <img class="rounded" onclick='on_click_profile_pic()' src='${profile_pic}'></td>`);
+    if (isself) {
+        s.push(`<td valign='bottom'><form enctype="multipart/form-data" method="post" action="receive_image.html" id="profile_pic_form">`);
+        s.push('<br><input id="browse_button" name="file" type="file" onchange="submit_profile_pic_form()">');
+        s.push('</form></td>');
+    }
+    s.push('</tr></table>');
+    s.push('<br><br>');
+    if (isself) {
+        s.push(`Change your user name: <input type='text' id='username' onkeydown='on_name_change()' onpaste='on_name_change()' value='${username}' maxlength='100'>`);
+        s.push(`<div class='hidden' id='submit_name'> <button type="button" name='Submit' onclick='submit_name_change()'>Submit Change</button></div>`);
+    } else {
+        s.push(`<b>${username}</b>`);
+    }
+    s.push('<br><br><br>');
+    if (isself) {
+        s.push(`<div id="no_pw_warning" class='hidden'><font color="red">You currently have no password! You should probably fix that.</font></div>`);
+        s.push(`<table><tr>`);
+        s.push(`    <td style="text-align:right">Change your password:<br><small><small><br></small></small>Again:</td>`);
+        s.push(`    <td>`);
+        s.push(`        <input type='password' id='pw1' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'><br>`);
+        s.push(`        <input type='password' id='pw2' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'>`);
+        s.push(`    </td>`);
+        s.push(`    <td valign='bottom'>`);
+        s.push(`        <div class='hidden' id='submit_pw'>`);
+        s.push(`            <button type="button" onclick='submit_pw_change()'>Submit Change</button>`);
+        s.push(`        </div>`);
+        s.push(`    </td>`);
+        s.push(`</tr></table><br>`);
+    }
+    let basic_info_div = document.getElementById('basic_info');
+    basic_info_div.innerHTML = s.join('');
 
-    show_or_hide_logout();
+    // Show log out link
+    show_or_hide_new_account_div();
+
+    // Fix up the back link
+    let back_span = document.getElementById('back_link');
+    if (prev_query.path !== undefined) {
+        back_span.innerHTML = `<a href="feed.html?path=${prev_query.path}">Back to debates</a>`;
+    }
 
     // Make the switch accounts div
-    if (account_images.length != account_names.length) {
-        throw 'Expected images and names to have the same length';
-    }
-    let s = [];
-    s.push('<h3>Switch account</h3>');
-    s.push('<table>');
-    for (let i = 0; i < account_names.length; i++) {
-        if (account_names[i] == username)
-            continue;
-        s.push('<tr><td>');
-        s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
-        s.push(`<img class="rounded" src='${account_images[i]}'>`);
+    if (isself) {
+        if (account_images.length != account_names.length) {
+            throw 'Expected images and names to have the same length';
+        }
+        s = [];
+        s.push('<h3>Switch account</h3>');
+        s.push('<table>');
+        for (let i = 0; i < account_names.length; i++) {
+            if (account_names[i] == username)
+                continue;
+            s.push(`<tr><td><a onclick="drop_account('${i}')" href="javascript:void(0);"><img src="starter_pics/trash.png"></a></td>`);
+            s.push(`<td><a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`<img class="rounded" src='${account_images[i]}'>`);
+            s.push('</a></td><td>');
+            s.push(`<b><a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`${account_names[i]}</a></b></td>`);
+            s.push(`<td>Password: <input type="text" id="pw_${i}" size=10></td>`);
+            s.push('</tr>');
+        }
+        s.push('<tr><td></td><td>');
+        s.push(`<a onclick="switch_manual()" href="javascript:void(0);">`);
+        s.push('<img class="rounded" src="starter_pics/unknown.jpeg">');
         s.push('</a></td><td>');
-        s.push(`<a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
-        s.push(`${account_names[i]}</a></td></tr>`);
+        s.push('ID: <input type="text" id="manual_username" size=10>');
+        s.push(`<td>Password: <input type="text" id="pw_manual" size=10></td>`);
+        s.push('<td><tr>');
+        let switch_account_div = document.getElementById('switch_account_div');
+        switch_account_div.innerHTML = s.join('');
     }
-    s.push('<tr><td>');
-    s.push(`<a onclick="switch_manual()" href="javascript:void(0);">`);
-    s.push('<img class="rounded" src="starter_pics/unknown.jpeg">');
-    s.push('</a></td><td>');
-    s.push('<input type="text" id="manual_username"><button type="button" onclick="switch_manual()">log in</button>');
-    s.push('<td><tr>');
-    let switch_account_div = document.getElementById('switch_account_div');
-    switch_account_div.innerHTML = s.join('');
 }
 
 function submit_profile_pic_form()
@@ -212,7 +308,8 @@ function submit_profile_pic_form()
 
 function on_click_profile_pic()
 {
-    alert('Press the \'Browse\' button to change your profile picture');
+    if (isself)
+        alert('Press the \'Browse\' button to change your profile picture');
 }
 
 function on_name_change()
@@ -248,7 +345,7 @@ function submit_pw_change()
     let pw1 = document.getElementById('pw1');
     let pw2 = document.getElementById('pw2');
     if (pw1.value != pw2.value) {
-        alert('Passwords do not match!');
+        alert('Passwords do not match! Not changed.');
         return;
     }
     outgoing({
@@ -271,7 +368,7 @@ function submit_pw_change()
             <div id='tagline'></div>
         </td>
         <td>
-            <a href="feed.html">Back to debates</a>
+            <span id='back_link'><a href="feed.html">Back to debates</a></span>
             &nbsp;&nbsp;&nbsp;
             <a href="handbook.html">Handbook</a>
             &nbsp;&nbsp;&nbsp;
@@ -283,52 +380,10 @@ function submit_pw_change()
 
 <br>
 <table cellpadding=40><tr><td>
-<table width="100%"><tr><td>
-        <h1>Your account</h1>
-    </td>
-    <td>
-        <div class='hidden' id='logout_div'>
-            <a onclick="logout()" href="javascript:void(0);">Log out</a>
-        </div>
-    </td>
-</tr></table>
-<p>
-    (<b>Warning:</b> Do not hand out personally identifying information on the Internet.
-    We use A.I.. You don't want it showing up at your house (j/k).
-
-    Seriously, though, pseudonymns are cool here. This is a free web service,
-    not a bank account or a government program. Keep control over your personal information. )
-</p>
-<br>
-<table><tr><td>Your profile picture: <img class="rounded" id='profile_pic' onclick='on_click_profile_pic()'></td>
-<td valign='bottom'><form enctype="multipart/form-data" method="post" action="receive_image.html" id="profile_pic_form">
-    <br>
-    <input id="browse_button" name="file" type="file" onchange="submit_profile_pic_form()">
-</form></td></tr></table>
-
-<br><br>
-Your user name: <input type='text' id='username' onkeydown='on_name_change()' onpaste='on_name_change()' value='' maxlength='100'>
-<div class='hidden' id='submit_name'> <button type="button" name='Submit' onclick='submit_name_change()'>Submit Change</button></div>
-<br>
-
-<br><br>
-<div id="no_pw_warning" class='hidden'><font color="red">You currently have no password!<br>
-    You will need a password before you can log out,<br>
-    so you can get back in.</font></div>
-<table><tr>
-    <td style="text-align:right">Your password:<br><small><small><br></small></small>Again:</td>
-    <td>
-        <input type='password' id='pw1' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'><br>
-        <input type='password' id='pw2' onkeydown='on_pw_change()' onpaste='on_pw_change()' value='' maxlength='100'>
-    </td>
-    <td valign='bottom'>
-        <div class='hidden' id='submit_pw'>
-            <button type="button" onclick='submit_pw_change()'>Submit Change</button>
-        </div>
-    </td>
-</tr></table>
-<br>
+<div id="basic_info"></div>
 <div id="switch_account_div"></div>
+<br>
+<div class='hidden' id='new_account_div'><a onclick="make_new_account()" href="javascript:void(0);">Make a new account</a></div>
 
 
 <br><br><br><br>

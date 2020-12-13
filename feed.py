@@ -269,8 +269,8 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
             ancestor = par
             visited: Set[str] = set()
             while ancestor.type == 'rp':
-                if ancestor.account_id != account.id and not ancestor.id in visited:
-                    visited.add(ancestor.id)
+                if ancestor.account_id != account.id and not ancestor.account_id in visited:
+                    visited.add(ancestor.account_id)
                     notifs.notify(ancestor.account_id, 'rp', ancestor.id, account.id)
                 if len(ancestor.parent_id) == 0:
                     break
@@ -397,7 +397,9 @@ def pick_ops(path: str) -> Tuple[bool, List[str]]:
     return is_leaf_cat, op_list
 
 def do_feed(query: Mapping[str, Any], session_id: str) -> str:
-    account = sessions.get_or_make_session(session_id).active_account()
+    session = sessions.get_or_make_session(session_id)
+    session.query = query
+    account = session.active_account()
     path = query['path'] if 'path' in query else '000000000000'
     is_leaf_cat, op_list = pick_ops(path)
     globals = [
