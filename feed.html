@@ -141,6 +141,7 @@ let aioff_indexes = {};
 let aion_indexes = {};
 let aioff_scores = {};
 let aion_scores = {};
+let updated_thresh = -1;
 
 // -------------
 // Slider widget
@@ -1170,6 +1171,10 @@ function on_change_opponent(id)
 function on_change_aion()
 {
     refresh_comments();
+    outgoing({
+        act: 'change_aion',
+        on: document.getElementById('ai_on').checked,
+    });
 }
 
 function on_slider_change(slider, val)
@@ -1179,6 +1184,16 @@ function on_slider_change(slider, val)
         tb.innerHTML = '' + val;
         refresh_comments();
     }
+    updated_thresh = val;
+    setTimeout(function() {
+        // If the threshold hasn't changed for a while, tell the server about it
+        if (updated_thresh === val) {
+            outgoing({
+                act: 'change_thresh',
+                val: val,
+            });
+        }
+    }, 1000);
 }
 
 function on_textarea_change(textarea, counter_id)
@@ -1211,9 +1226,15 @@ function init()
 
     // Show or hide the ai on/off controls
     if (rating_count > 10) {
+        if (initial_ai_on) {
+            document.getElementById('ai_on').checked = true;
+        } else {
+            document.getElementById('ai_off').checked = true;
+        }
         let ai_switch = document.getElementById('ai_switch');
         ai_switch.style.display = 'inline-block';
     }
+    myslider.set_value(initial_thresh);
 
     // Pull the content
     rev = 0;
@@ -1269,7 +1290,7 @@ function init()
                     </div>
                 </td>
                 <td>
-                    <script language="JavaScript">myslider = new Slider('slider_bg.png', 321, 22, 'slider_tab.png', 19, 20, 25, on_slider_change);</script>
+                    <script language="JavaScript">let myslider = new Slider('slider_bg.png', 321, 22, 'slider_tab.png', 19, 20, 25, on_slider_change);</script>
                     &nbsp;&nbsp;&nbsp;&nbsp;Show the top <span id="thresh">25</span> comments<br>
                 </td>
             </tr></table>

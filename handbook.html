@@ -539,13 +539,6 @@ function on_scroll()
 			on_change_anchor(current_anchor.id);
 		}
 	}
-
-	var a = get_current_anchor();
-	if(a != lastanchor)
-	{
-		alert(a.href);
-		lastanchor = a;
-	}
 }
 
 find_links(); // Find all the TOC links

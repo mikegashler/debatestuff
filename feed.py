@@ -363,6 +363,12 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                     'act': 'alert',
                     'msg': msg,
                 })
+        elif act == 'change_aion': # Turn the AI on or off
+            account.ai_on = incoming_packet['on']
+            accounts.account_cache.set_modified(account.id)
+        elif act == 'change_thresh': # Change the threshold by moving the slider
+            account.thresh = incoming_packet['val']
+            accounts.account_cache.set_modified(account.id)
         else:
             raise RuntimeError('unrecognized action')
     except Exception as e:
@@ -414,6 +420,8 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
         'let rating_count = ', str(account.rating_count), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
+        'let initial_ai_on = ', 'true' if account.ai_on else 'false', ';\n',
+        'let initial_thresh = ', str(account.thresh), ';\n',
     ]
     updated_feed_page = feed_page.replace('//<globals>//', ''.join(globals), 1)
     return updated_feed_page

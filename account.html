@@ -179,9 +179,9 @@ function drop_account(index)
 {
     outgoing({
         'act': 'drop_account',
-        'index': i,
+        'index': index,
     })
-    location.reload();
+    setTimeout(function() { location.reload(); }, 200);
 }
 
 function switch_account(account_name)
@@ -277,7 +277,7 @@ function init()
         for (let i = 0; i < account_names.length; i++) {
             if (account_names[i] == username)
                 continue;
-            s.push(`<tr><td><a onclick="drop_account('${i}')" href="javascript:void(0);"><img src="starter_pics/trash.png"></a></td>`);
+            s.push(`<tr><td><a onclick="drop_account(${i})" href="javascript:void(0);"><img src="starter_pics/trash.png"></a></td>`);
             s.push(`<td><a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
             s.push(`<img class="rounded" src='${account_images[i]}'>`);
             s.push('</a></td><td>');

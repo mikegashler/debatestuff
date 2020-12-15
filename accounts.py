@@ -51,6 +51,8 @@ class Account():
         self.admin = True if (len(account_cache) == 0 and db.have_no_accounts()) else False
         self.comment_count = 0
         self.rating_count = 0
+        self.ai_on = False
+        self.thresh = 25
 
     def marshal(self) -> Mapping[str, Any]:
         packet = {
@@ -60,6 +62,8 @@ class Account():
             'coms': self.comment_count,
             'rats': self.rating_count,
             'admin': self.admin,
+            'ai_on': self.ai_on,
+            'thresh': self.thresh,
         }
         return packet
 
@@ -70,6 +74,8 @@ class Account():
         account.comment_count = ob['coms']
         account.rating_count = ob['rats']
         account.admin = ob['admin']
+        account.ai_on = ob['ai_on']
+        account.thresh = ob['thresh']
         return account
 
 def fetch_account(id: str) -> Account:
@@ -146,7 +152,11 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
             account_cache.set_modified(account.id)
             return { 'have_pw': len(account.password) > 0 }
         elif act == 'drop_account':
-            pass
+            index = ob['index']
+            if sess.active_index >= index:
+                sess.active_index = max(0, sess.active_index - 1)
+            del sess.account_ids[index]
+            sessions.session_cache.set_modified(session_id)
         else:
             raise RuntimeError('unrecognized action')
         return {}
