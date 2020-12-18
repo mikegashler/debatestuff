@@ -10,6 +10,7 @@ import os
 from db import db
 import cache
 import traceback
+import posts
 
 auto_name_1 = [
  'amazing', 'awesome', 'blue', 'brave', 'calm', 'cheesy', 'confused', 'cool', 'crazy', 'crafty',
@@ -49,7 +50,7 @@ class Account():
         self.password = ''
         self.image = image
         self.admin = True if (len(account_cache) == 0 and db.have_no_accounts()) else False
-        self.comment_count = 0
+        self.comments: List[str] = []
         self.rating_count = 0
         self.ai_on = False
         self.thresh = 25
@@ -59,7 +60,7 @@ class Account():
             'name': self.name,
             'pw': self.password,
             'image': self.image,
-            'coms': self.comment_count,
+            'comments': self.comments,
             'rats': self.rating_count,
             'admin': self.admin,
             'ai_on': self.ai_on,
@@ -71,7 +72,7 @@ class Account():
     def unmarshal(id: str, ob: Mapping[str, Any]) -> 'Account':
         account = Account(id, ob['name'], ob['image'])
         account.password = ob['pw']
-        account.comment_count = ob['coms']
+        account.comments = ob['comments']
         account.rating_count = ob['rats']
         account.admin = ob['admin']
         account.ai_on = ob['ai_on']
@@ -122,7 +123,18 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
     try:
         sess = sessions.get_or_make_session(session_id)
         act = ob['act']
-        if act == 'logout':
+        if act == 'update':
+            account = sess.active_account()
+            pos = ob['comments_pos']
+            comments: List[Tuple[str, str]] = []
+            for i in range(30):
+                if pos == 0:
+                    break
+                pos -= 1
+                post_id = account.comments[pos]
+                comments.append((post_id, posts.summarize_post(post_id, 50)))
+            return { 'comments_pos': pos, 'comments': comments }
+        elif act == 'logout':
             sess.switch_account('')
             return { 'reload': True }
         elif act == 'switch':
@@ -187,6 +199,7 @@ def do_account(query: Mapping[str, Any], session_id: str) -> str:
         'let account_names = ', str([a.name for a in accounts]), ';\n',
         'let account_images = ', str([a.image for a in accounts]), ';\n',
         'let prev_query = ', str(sess.query), ';\n',
+        'let comments_pos = ', str(len(account.comments)), ';\n',
     ]
     updated_account_page = account_page.replace('//<globals>//', ''.join(globals), 1)
     return updated_account_page

@@ -1,5 +1,5 @@
 <html><head>
-        <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
     <style>
         body {
             background-color: #cccccc;
@@ -166,6 +166,22 @@ function incoming(response)
     if (ob.reload === true) {
         location.reload();
     }
+    if (ob.comments_pos !== undefined) {
+        comments_pos = ob.comments_pos;
+    }
+    if (ob.comments !== undefined) {
+        receive_comments(ob.comments);
+    }
+}
+
+function receive_comments(comments)
+{
+    let comments_list = document.getElementById('comments');
+    for (let com of comments) {
+        let item = document.createElement('li');
+        item.innerHTML = `<a href="feed.html?path=${com[0]}">${com[1]}</a>`;
+        comments_list.appendChild(item);
+    }
 }
 
 function make_new_account()
@@ -296,6 +312,9 @@ function init()
         let switch_account_div = document.getElementById('switch_account_div');
         switch_account_div.innerHTML = s.join('');
     }
+
+    // Get comments
+    request_updates();
 }
 
 function submit_profile_pic_form()
@@ -355,6 +374,17 @@ function submit_pw_change()
     let submit_div = document.getElementById('submit_pw');
     submit_div.style.display = 'none';
 }
+
+function request_updates()
+{
+    if (comments_pos > 0) {
+        outgoing({
+            act: 'update',
+            comments_pos: comments_pos,
+        });
+    }
+}
+
 </script>
 
 </head><body>
@@ -385,6 +415,9 @@ function submit_pw_change()
 <br>
 <div class='hidden' id='new_account_div'><a onclick="make_new_account()" href="javascript:void(0);">Make a new account</a></div>
 
+<br><br>
+<h3>Your posts and comments:</h3>
+<ul id='comments'></ul>
 
 <br><br><br><br>
 </td></tr></table>
@@ -393,7 +426,7 @@ function submit_pw_change()
 
 <script type="text/javascript">
 init();
-//let timer = setInterval(function() { get_updates(); }, 5000);
+let timer = setInterval(function() { request_updates(); }, 5000);
 </script>
 
 </body></html>

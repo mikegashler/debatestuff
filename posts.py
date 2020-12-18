@@ -130,3 +130,8 @@ def new_post(id: str, parent_id: str, type: str, text: str, account_id: str) -> 
         hist.on_post(id)
         history.history_cache.set_modified(op_id)
     return post_cache.add(id, Post(id, parent_id, op_id, type, text, account_id))
+
+def summarize_post(post_id: str, n: int) -> str:
+    post = post_cache[post_id]
+    summary = post.text[:n] + ('...' if len(post.text) > n else '')
+    return summary

@@ -21,13 +21,13 @@ rating_choices = [
     (-1.,'Anecdotal','Attempts to establish a trend from few examples, leans on witnesses for extraordinary events, or guilt by association'),
     (-1.,'Closed minded','Dismissive without a better alternative, appeals to ignorance, or assumes plausible explanation are false until proven true'),
     (-1.,'Leaps','Jumps to desired conclusion from ambiguous data, circular reasoning, abandons assumptions, special pleading, or faulty analogy'),
-    (-1.,'Straw-man','Battles a misrepresentation of an opponent\'s position, slippery slope, or tells opponent what their position is'),
+    (-1.,'Straw-man','Battles a misrepresentation of an opponent\'s position, slippery slope, extremifies opponent, or tells opponent what their position is'),
     (-1.,'Word games','Supposes terms we define govern reality, ontological arguments, defines something into existence, proofs that work with anything'),
     (-1.,'Shirks','Appeals to popularity or authority or celebrities or traditions or preferences instead of offering reasons'),
-    (-1.,'Is-ought','jumps from values to truth or reality to morality or argues from consequences, moralistic fallacy'),
+    (-1.,'Is-ought','jumps from values to truth or reality to morality, argues from consequences, moralistic fallacy'),
     (-1.,'Vague conviction','Certain of something with a name but no clear definition, conflates naming with explaining, or cherry picking'),
-    (-1.,'Dumping','Attempts to overwhelm rather than convince, hides behind unsummarized canned content, Gish Gallop, or excessively strong adjectives'),
-    (-1.,'False choice','Presents an incomplete set of possibilities as complete, excluded middle fallacy, black or white thinking'),
+    (-1.,'Dumping','Attempts to overwhelm rather than convince, asks opponent to digest unsummarized canned content, Gish Gallop, or excessively strong adjectives'),
+    (-1.,'False choice','Presents an incomplete set of possibilities as complete, black or white thinking, take it or leave it fallacy'),
     (-1.,'Unclear relevance','Miscategorized, off-topic, incoherent, word salad, or spam'),
 ]
 

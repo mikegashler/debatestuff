@@ -134,11 +134,6 @@ def delete_post(post_id: str) -> None:
         history.rewrite_op_history(post.op_id)
     # todo: recursively remove the post and all its children from the database
 
-def summarize_post(post_id: str, n: int) -> str:
-    post = posts.post_cache[post_id]
-    summary = post.text[:n] + ('...' if len(post.text) > n else '')
-    return summary
-
 # Recursively adds a whole branch of categories to the updates
 def add_cat_updates(updates: List[Dict[str, Any]], post: posts.Post, account_id: str, depth: int) -> None:
     import posts
@@ -247,17 +242,18 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         elif act == 'comment': # Post a response comment
             if not 'text' in incoming_packet:
                 raise ValueError('expected a text field')
-            # if account.comment_count * 2 >= account.ratings_count:
+            # if len(account.comments) * 2 >= account.ratings_count:
             #     updates.append({
             #         'act': 'alert',
-            #         'msg': 'Sorry, you have rated {account.ratings_count} comments and have posted {account.comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
+            #         'msg': 'Sorry, you have rated {account.ratings_count} comments and have posted {len(account.comments)}.\nA 2:1 ratio is required, so you must rate more comments before you may post.',
             #     })
             # else:
             text = format_comment(incoming_packet['text'], 1000)
             par = posts.post_cache[incoming_packet['parid']]
             new_post_id = posts.new_post_id()
             child = posts.new_post(new_post_id, incoming_packet['parid'], 'rp', text, account.id)
-            account.comment_count += 1
+            account.comments.append(child.id)
+            accounts.account_cache.set_modified(account.id)
             updates.append({
                 'act': 'focus',
                 'id': child.id,
@@ -342,7 +338,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
                         'id': m[1],
                         'image': m[2],
                         'name': m[3],
-                        'summ': summarize_post(m[1], 30),
+                        'summ': posts.summarize_post(m[1], 30),
                     }
                     for m in digested_notifications ]
             })
@@ -416,7 +412,7 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
         'let admin = ', 'true' if account.admin else 'false', ';\n',
         'let account_name = \'', account.name, '\';\n',
         'let account_pic = \'', account.image, '\';\n',
-        'let comment_count = ', str(account.comment_count), ';\n',
+        'let comment_count = ', str(len(account.comments)), ';\n',
         'let rating_count = ', str(account.rating_count), ';\n',
         'let rating_choices = ', str([ x[1] for x in rec.rating_choices ]), ';\n',
         'let rating_descr = ', str([ x[2] for x in rec.rating_choices ]), ';\n',
