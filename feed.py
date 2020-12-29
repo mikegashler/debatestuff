@@ -147,7 +147,7 @@ def add_cat_updates(updates: List[Dict[str, Any]], post: posts.Post, account_id:
 # Adds post updates the client needs for its tree
 def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any], account_id: str) -> Tuple[int, List[str], List[int]]:
     import posts
-    path = incoming_packet['path']
+    focus_post_id = incoming_packet['post']
     rev = incoming_packet['rev']
     op_list = incoming_packet['ops']
     op_revs = incoming_packet['opr']
@@ -155,7 +155,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
 
     # Find the ancestor category (and pick up the op if we don't have any)
     depth = -1 # depth above the OP
-    category = posts.post_cache[path]
+    category = posts.post_cache[focus_post_id]
     while category.type != 'cat':
         if len(op_list) == 0 and category.type == 'op':
             op_list.append(category.id)
@@ -166,7 +166,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
 
     # Do platform updates
     if rev < 1:
-        # Add the stack from the root to the path node
+        # Add the stack from the root to the post node
         stack: List[posts.Post] = []
         n = category
         while True:
@@ -371,7 +371,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         traceback.print_exc()
         updates.append({
             'act': 'alert',
-            'msg': repr(e),
+            'msg': str(e), # repr(e),
         })
     new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account.id)
     annotate_updates(updates, account)
@@ -387,9 +387,9 @@ def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, An
         'updates': updates,
     }
 
-def pick_ops(path: str) -> Tuple[bool, List[str]]:
+def pick_ops(post: str) -> Tuple[bool, List[str]]:
     op_list: List[str] = []
-    node = posts.post_cache[path]
+    node = posts.post_cache[post]
     is_leaf_cat = (node.type == 'cat' and (len(node.children) == 0 or posts.post_cache[node.children[0]].type == 'op'))
     if is_leaf_cat and len(node.children) > 0:
         for i in reversed(range(len(node.children))):
@@ -402,11 +402,11 @@ def do_feed(query: Mapping[str, Any], session_id: str) -> str:
     session = sessions.get_or_make_session(session_id)
     session.query = query
     account = session.active_account()
-    path = query['path'] if 'path' in query else '000000000000'
-    is_leaf_cat, op_list = pick_ops(path)
+    post = query['post'] if 'post' in query else '000000000000'
+    is_leaf_cat, op_list = pick_ops(post)
     globals = [
         'let session_id = \'', session_id, '\';\n',
-        'let path = "', path, '";\n',
+        'let post = "', post, '";\n',
         'let op_list = ', str(op_list), ';\n',
         'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
         'let admin = ', 'true' if account.admin else 'false', ';\n',

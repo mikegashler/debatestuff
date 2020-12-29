@@ -115,7 +115,7 @@ def scrub_name(s: str) -> str:
 
 
 # Load the account page
-with open('account.html') as f:
+with open('accounts.html') as f:
     lines = f.readlines()
     account_page = ''.join(lines)
 
@@ -135,11 +135,11 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
                 comments.append((post_id, posts.summarize_post(post_id, 50)))
             return { 'comments_pos': pos, 'comments': comments }
         elif act == 'logout':
-            sess.switch_account('')
+            sess.switch_account('', '')
             return { 'reload': True }
         elif act == 'switch':
             try:
-                sess.switch_account(ob['name'])
+                sess.switch_account(ob['name'], ob['pw'])
             except KeyError:
                 raise ValueError('Unrecognized user name')
             return { 'reload': True }
@@ -175,7 +175,7 @@ def do_ajax(ob: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
     except Exception as e:
         traceback.print_exc()
         return {
-            'alert': repr(e),
+            'alert': str(e), # repr(e),
         }
 
 def do_account(query: Mapping[str, Any], session_id: str) -> str:

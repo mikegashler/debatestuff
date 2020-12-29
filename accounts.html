@@ -179,7 +179,7 @@ function receive_comments(comments)
     let comments_list = document.getElementById('comments');
     for (let com of comments) {
         let item = document.createElement('li');
-        item.innerHTML = `<a href="feed.html?path=${com[0]}">${com[1]}</a>`;
+        item.innerHTML = `<a href="feed.html?post=${com[0]}">${com[1]}</a>`;
         comments_list.appendChild(item);
     }
 }
@@ -200,23 +200,38 @@ function drop_account(index)
     setTimeout(function() { location.reload(); }, 200);
 }
 
-function switch_account(account_name)
+function switch_account_by_name(account_name, password)
 {
     outgoing({
         'act': 'switch',
         'name': account_name,
+        'pw': password,
     })
+}
+
+function switch_account(index)
+{
+    let password = document.getElementById(`pw_${index}`).value;
+    switch_account_by_name(account_names[index], password);
+}
+
+function pw_onkeyup(index, event)
+{
+    if (event.keyCode === 13) {
+        switch_account(index);
+    }
 }
 
 function switch_manual()
 {
     let un = document.getElementById('manual_username');
+    let pw = document.getElementById('pw_manual');
     if (un.value.length < 1) {
         alert('Please enter your username');
         un.focus();
         return;
     }
-    switch_account(un.value);
+    switch_account_by_name(un.value, pw.value);
 }
 
 function get_updates()
@@ -278,8 +293,8 @@ function init()
 
     // Fix up the back link
     let back_span = document.getElementById('back_link');
-    if (prev_query.path !== undefined) {
-        back_span.innerHTML = `<a href="feed.html?path=${prev_query.path}">Back to debates</a>`;
+    if (prev_query.post !== undefined) {
+        back_span.innerHTML = `<a href="feed.html?post=${prev_query.post}">Back to debates</a>`;
     }
 
     // Make the switch accounts div
@@ -294,12 +309,12 @@ function init()
             if (account_names[i] == username)
                 continue;
             s.push(`<tr><td><a onclick="drop_account(${i})" href="javascript:void(0);"><img src="starter_pics/trash.png"></a></td>`);
-            s.push(`<td><a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`<td><a onclick="switch_account(${i})" href="javascript:void(0);">`);
             s.push(`<img class="rounded" src='${account_images[i]}'>`);
             s.push('</a></td><td>');
-            s.push(`<b><a onclick="switch_account('${account_names[i]}')" href="javascript:void(0);">`);
+            s.push(`<b><a onclick="switch_account(${i})" href="javascript:void(0);">`);
             s.push(`${account_names[i]}</a></b></td>`);
-            s.push(`<td>Password: <input type="text" id="pw_${i}" size=10></td>`);
+            s.push(`<td>Password: <input type="text" id="pw_${i}" onkeyup="pw_onkeyup(${i}, event);" size=10></td>`);
             s.push('</tr>');
         }
         s.push('<tr><td></td><td>');
@@ -401,8 +416,6 @@ function request_updates()
             <span id='back_link'><a href="feed.html">Back to debates</a></span>
             &nbsp;&nbsp;&nbsp;
             <a href="handbook.html">Handbook</a>
-            &nbsp;&nbsp;&nbsp;
-            <a href="account.html">Account</a>
             <br>
     </td>
     </tr></table>

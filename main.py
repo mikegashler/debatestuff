@@ -60,7 +60,7 @@ if __name__ == "__main__":
         'index.html': do_index,
         'feed.html': feed.do_feed,
         'feed_ajax.html': feed.do_ajax,
-        'account.html': accounts.do_account,
+        'accounts.html': accounts.do_account,
         'account_ajax.html': accounts.do_ajax,
         'receive_image.html': accounts.receive_image,
     })

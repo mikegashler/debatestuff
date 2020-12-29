@@ -93,6 +93,14 @@
             border-radius: 9px;
         }
 
+        .hovermenu {
+          display: none;
+        }
+
+        .hovermenulink:hover .hovermenu {
+          display: inline-block;
+        }
+
         .tool {
         }
 
@@ -438,7 +446,7 @@ function httpPost(url, payload, callback)
 function outgoing(payload)
 {
     payload.session_id = session_id;
-    payload.path = path;
+    payload.post = post;
     payload.rev = rev;
     payload.ops = op_list;
     payload.opr = op_revs;
@@ -819,7 +827,7 @@ function update_notifications(pos, msgs)
         }
         else
             console.log(`Error, unrecognized notification ${msg.type}`);
-        s.push(`<a href='?path=${msg.id}'>${msg.summ}</a>`);
+        s.push(`<a href='?post=${msg.id}'>${msg.summ}</a>`);
         s.push('</td></tr>');
     }
     s.push('</table>');
@@ -854,7 +862,7 @@ function startNewDebate()
     let text = text_box.value;
     let packet = {
         act: 'newop',
-        parid: path,
+        parid: post,
         mode: mode,
         text: text,
     };
@@ -889,6 +897,8 @@ function accept_challenge(pod_id)
 // entry is an object that describes the entry
 function add_rate_and_respond_links(s, entry, allow_reply)
 {
+    s.push('<div class="hovermenulink">');
+
     // Hint
     s.push('<span class="tool">');
     s.push(`<div id='h.${entry.id}'></div>`);
@@ -917,10 +927,17 @@ function add_rate_and_respond_links(s, entry, allow_reply)
         s.push('</span>');
     }
 
+
+    s.push('<div class="hovermenu">');
+
     // Delete
     if (admin) {
         s.push(`<a href="#javascript:void(0)" onclick="del_node('${entry.id}')">delete</a><br>`);
     }
+
+    s.push(`<a href="http://google.com")">Google</a><br>`);
+
+    s.push('</div></div>');
 }
 
 // newDiv is a div to hold the content this function generates.
@@ -933,7 +950,7 @@ function make_cat(newDiv, entry)
     if (entry.dep > 0) {
         s.push('└─');
     }
-    s.push(`<a href='?path=${entry.id}'>${entry.text}</a>\n`);
+    s.push(`<a href='?post=${entry.id}'>${entry.text}</a>\n`);
     s.push('</big></big><br>');
     s.push(`<div id="n.${entry.id}"></div>\n`);
     newDiv.innerHTML = s.join('');
@@ -1062,7 +1079,7 @@ function add_node(entry)
     // Fill out the div content
     if (entry.type === 'rp') {
         make_rp(newDiv, entry);
-        if (entry.id == path) {
+        if (entry.id == post) {
             newDiv.scrollIntoView();
         }
     } else if (entry.type === 'pod') {
@@ -1259,8 +1276,8 @@ function init()
         <td>
             <table width="100%">
                 <tr>
-                    <td align='right'><a href="account.html"><span id="account_name"></span></a></td>
-                    <td valign='top' rowspan=2><a href="account.html"><span id="account_pic"></span></a></td>
+                    <td align='right'><a href="accounts.html"><span id="account_name"></span></a></td>
+                    <td valign='top' rowspan=2><a href="accounts.html"><span id="account_pic"></span></a></td>
                 </tr>
                 <tr>
                     <td>

@@ -12,7 +12,7 @@ class Session():
         self.query: Mapping[str, Any] = {}
 
     # If account_name is the empty string, this will switch to the first account with no password, creating one if necessary
-    def switch_account(self, account_name: str) -> None:
+    def switch_account(self, account_name: str, password: str) -> None:
         session_cache.set_modified(self.id)
         if len(account_name) == 0: # Log out
             for i in range(len(self.account_ids)):
@@ -27,6 +27,8 @@ class Session():
             self.account_ids.append(no_password_account.id)
         else:
             acc = accounts.find_account_by_name(account_name)
+            if acc.password != password:
+                raise ValueError('Incorrect password')
             if acc.id in self.account_ids:
                 self.active_index = self.account_ids.index(acc.id)
             else:
