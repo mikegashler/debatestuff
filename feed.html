@@ -927,15 +927,15 @@ function add_rate_and_respond_links(s, entry, allow_reply)
         s.push('</span>');
     }
 
+    s.push('<div class="hovermenu">'); // Everything below this line will appear on hover
 
-    s.push('<div class="hovermenu">');
+    // Link
+    s.push(`<a href="?post=${entry.id}" onclick="return copy_text('${crop_params(window.location.href)}?post=${entry.id}')">link</a><br>`);
 
     // Delete
     if (admin) {
         s.push(`<a href="#javascript:void(0)" onclick="del_node('${entry.id}')">delete</a><br>`);
     }
-
-    s.push(`<a href="http://google.com")">Google</a><br>`);
 
     s.push('</div></div>');
 }
@@ -1223,6 +1223,28 @@ function on_textarea_change(textarea, counter_id)
     count_span.innerHTML = chars_remaining < 500 ? chars_remaining : '';
 }
 
+function crop_params(url)
+{
+    let n = url.indexOf('?');
+    if (n < 0) {
+        return url;
+    } else {
+        return url.substr(0, n);
+    }
+}
+
+function copy_text(str)
+{
+    let tempInput = document.createElement("input");
+    tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+    tempInput.value = str;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand("copy");
+    document.body.removeChild(tempInput);
+    return false; // don't follow the link
+}
+
 function init()
 {
     // Set the tag line
@@ -1340,6 +1362,7 @@ function init()
 
 <div id='n.'></div>
 </td></tr></table>
+<input type='hidden' id='clipboard_helper'>
 <br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br>
 <br><br><br><br><br><br><br><br>

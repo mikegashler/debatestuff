@@ -205,7 +205,7 @@ function switch_account_by_name(account_name, password)
     outgoing({
         'act': 'switch',
         'name': account_name,
-        'pw': password,
+        'pw': password.length === 0 ? '' : Sha256.hash(password),
     })
 }
 
@@ -384,7 +384,7 @@ function submit_pw_change()
     }
     outgoing({
         'act': 'change_pw',
-        'pw': pw1.value,
+        'pw': pw1.value.length === 0 ? '' : Sha256.hash(pw1.value),
     });
     let submit_div = document.getElementById('submit_pw');
     submit_div.style.display = 'none';
