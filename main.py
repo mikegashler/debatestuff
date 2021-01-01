@@ -13,7 +13,7 @@ import os
 import posts
 from config import config
 
-def do_index(query: Mapping[str, Any], session_id: str) -> str:
+def do_index(query: Mapping[str, Any], session: sessions.Session) -> str:
     return f'<html><head><meta http-equiv="refresh" content="0;URL=\'feed.html\'"></head></html>'
 
 def bootstrap_recursive(id: str, par_id: str, ob: Mapping[str, Any], account_ids: Dict[Any, str], sess: sessions.Session) -> None:
@@ -37,8 +37,8 @@ def bootstrap_recursive(id: str, par_id: str, ob: Mapping[str, Any], account_ids
 # This is only called the first time, when the database is empty.
 def bootstrap() -> None:
     # The next client to connect will be given admin privileges
-    sess: sessions.Session = sessions.reserve_session()
-    sess.active_account().admin = True
+    session: sessions.Session = sessions.reserve_session()
+    accounts.active_account(session).admin = True
 
     # Populate the comment tree
     root_id = '000000000000'
@@ -46,11 +46,11 @@ def bootstrap() -> None:
     if 'bootstrap' in config:
         # Bootstrap with data from config
         bs = cast(Mapping[str, Any], config['bootstrap'])
-        bootstrap_recursive(root_id, '', bs, account_ids, sess)
+        bootstrap_recursive(root_id, '', bs, account_ids, session)
     else:
         # No bootstrap data, so just do a bare bones setup.
         posts.new_post(root_id, '', 'cat', 'Everything', '')
-    sessions.session_cache.set_modified(sess.id)
+    sessions.session_cache.set_modified(session.id)
 
 if __name__ == "__main__":
     db.load()

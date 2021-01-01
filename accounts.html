@@ -328,6 +328,12 @@ function init()
         switch_account_div.innerHTML = s.join('');
     }
 
+    // Maybe show the ban button
+    if (admin && !isself) {
+        let ban_div = document.getElementById('ban_div');
+        ban_button.style.display = 'inline-block';
+    }
+
     // Get comments
     request_updates();
 }
@@ -400,6 +406,13 @@ function request_updates()
     }
 }
 
+function ban_user()
+{
+    outgoing({
+        act: 'ban',
+        id: session_id,
+    })
+}
 </script>
 
 </head><body>
@@ -429,8 +442,9 @@ function request_updates()
 <div class='hidden' id='new_account_div'><a onclick="make_new_account()" href="javascript:void(0);">Make a new account</a></div>
 
 <br><br>
-<h3>Your posts and comments:</h3>
+<h3>Recent posts:</h3>
 <ul id='comments'></ul>
+<div id='ban_div' class='hidden'><button type="button" onclick="ban_user()">Permanently ban this user and IP address</button></div>
 
 <br><br><br><br>
 </td></tr></table>

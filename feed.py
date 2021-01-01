@@ -212,12 +212,12 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
     return rev, op_list, op_revs
 
 # Handles POST requests
-def do_ajax(incoming_packet: Mapping[str, Any], session_id: str) -> Dict[str, Any]:
+def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Dict[str, Any]:
     updates: List[Dict[str, Any]] = []
     try:
         if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
             raise ValueError('malformed request')
-        account = sessions.get_or_make_session(session_id).active_account()
+        account = accounts.active_account(session)
         act = incoming_packet['act']
         if act == 'update': # Just get updates
             pass
@@ -398,14 +398,13 @@ def pick_ops(post: str) -> Tuple[bool, List[str]]:
                 break
     return is_leaf_cat, op_list
 
-def do_feed(query: Mapping[str, Any], session_id: str) -> str:
-    session = sessions.get_or_make_session(session_id)
+def do_feed(query: Mapping[str, Any], session: sessions.Session) -> str:
     session.query = query
-    account = session.active_account()
+    account = accounts.active_account(session)
     post = query['post'] if 'post' in query else '000000000000'
     is_leaf_cat, op_list = pick_ops(post)
     globals = [
-        'let session_id = \'', session_id, '\';\n',
+        'let session_id = \'', session.id, '\';\n',
         'let post = "', post, '";\n',
         'let op_list = ', str(op_list), ';\n',
         'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',

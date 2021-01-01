@@ -5,24 +5,12 @@ import os
 import json
 import urllib.parse as urlparse
 import urllib.request, urllib.parse, urllib.error
-import random
-import string
 from http.cookies import SimpleCookie
 import re
 import posixpath
 import datetime
-import rec
+import sessions
 
-COOKIE_LEN = 12
-
-reserved_session: Optional[str] = None
-
-def new_session_id() -> str:
-    global reserved_session
-    if reserved_session is not None:
-        sess_id, reserved_session = reserved_session, None
-        return sess_id
-    return ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(COOKIE_LEN))
 
 sws: 'SimpleWebServer'
 simpleWebServerPages: Mapping[str, Any] = {}
@@ -59,8 +47,6 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         sws = self
 
         ip_address = self.client_address[0]
-        if ip_address in rec.engine.banned_addresses:
-            return
 
         # Parse url
         url_parts = urlparse.urlparse(self.path)
@@ -76,18 +62,17 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         cookie = SimpleCookie(self.headers.get('Cookie')) # type: ignore
         if 'sid' in cookie:
             session_id = cookie['sid'].value
-            if len(session_id) != COOKIE_LEN:
+            if len(session_id) != sessions.COOKIE_LEN:
                 print(f'Bad session id {session_id}. Making new one.')
-                session_id = new_session_id()
-            if session_id in rec.engine.banned_sessions:
-                return
+                session_id = sessions.new_session_id()
         else:
-            session_id = new_session_id()
+            session_id = sessions.new_session_id()
             print(f'No session id. Making new one.')
+        session = sessions.get_or_make_session(session_id, ip_address)
 
         # Get content
         if filename in simpleWebServerPages:
-            content = simpleWebServerPages[filename](q, session_id)
+            content = simpleWebServerPages[filename](q, session)
         else:
             try:
                 with open(filename, 'rb') as f:
@@ -99,6 +84,8 @@ class SimpleWebServer(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         global sws
         sws = self
+
+        ip_address = self.client_address[0]
 
         # Parse url
         url_parts = urlparse.urlparse(self.path)
@@ -114,8 +101,9 @@ class SimpleWebServer(BaseHTTPRequestHandler):
                 session_id = cookie['sid'].value
             else:
                 raise ValueError('No cookie in POST with uploaded file.')
+            session = sessions.get_or_make_session(session_id, ip_address)
 
-            response = simpleWebServerPages[filename]({}, session_id)
+            response = simpleWebServerPages[filename]({}, session)
             ajax_params = {}
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
@@ -131,16 +119,17 @@ class SimpleWebServer(BaseHTTPRequestHandler):
             session_id = ''
             if 'session_id' in ajax_params:
                 session_id = ajax_params['session_id']
-            if len(session_id) != COOKIE_LEN:
+            if len(session_id) != sessions.COOKIE_LEN:
                 cookie = SimpleCookie(self.headers.get('Cookie'))
                 if 'sid' in cookie:
                     session_id = cookie['sid'].value
                 else:
                     raise ValueError('No cookie with POST. This is probably an error')
-                    session_id = new_session_id()
+                    session_id = sessions.new_session_id()
+            session = sessions.get_or_make_session(session_id, ip_address)
 
             # Generate a response
-            response = simpleWebServerPages[filename](ajax_params, session_id)
+            response = simpleWebServerPages[filename](ajax_params, session)
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -184,7 +173,7 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         return str(fn[0])
 
     @staticmethod
-    def render(pages: Mapping[str, Callable[[Mapping[str,Any], str],Any]]) -> None:
+    def render(pages: Mapping[str, Callable[[Mapping[str,Any], sessions.Session],Any]]) -> None:
         global simpleWebServerPages
         simpleWebServerPages = pages
         port = 8986
@@ -200,7 +189,7 @@ class SimpleWebServer(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    def do_index(params: Mapping[str, Any], session_id:str) -> str:
+    def do_index(params: Mapping[str, Any], session: sessions.Session) -> str:
         s = [
             """<html><body>
 <h1>Here is the number 4:</h1>""",

@@ -76,6 +76,7 @@ class Post():
             acc = accounts.account_cache[self.account_id]
             outgoing_packet['image'] = acc.image
             outgoing_packet['name'] = acc.name
+            outgoing_packet['aid'] = acc.id
 
         # Tell the client about any relevant whitelist
         if len(self.parent_id) > 0:

@@ -899,23 +899,11 @@ function add_rate_and_respond_links(s, entry, allow_reply)
 {
     s.push('<div class="hovermenulink">');
 
-    // Hint
-    s.push('<span class="tool">');
-    s.push(`<div id='h.${entry.id}'></div>`);
-    s.push(`<span class="tool_anchor"><span class="tooltip">When our A.I. is turned off, this is the most common rating. When our A.I. is turned on, it is our prediction of how you would rate it</span></span>`);
-    s.push('</span>');
-
     if (entry.name !== account_name) {
         // React
         s.push('<span class="tool">');
-        s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">react</a><br>`);
+        s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">emote</a><br>`);
         s.push(`<span class="tool_anchor"><span class="tooltip">Express a positive emotion for the author. (The author will be notified about your reaction. Our A.I. will not be informed.)</span></span>`);
-        s.push('</span>');
-
-        // Rate
-        s.push('<span class="tool">');
-        s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
-        s.push(`<span class="tool_anchor"><span class="tooltip">Rate this post to help us determine which ones to show. (Our A.I. will learn from your ratings. The author will not be informed who rated the post.)</span></span>`);
         s.push('</span>');
     }
 
@@ -927,10 +915,24 @@ function add_rate_and_respond_links(s, entry, allow_reply)
         s.push('</span>');
     }
 
-    s.push('<div class="hovermenu">'); // Everything below this line will appear on hover
+    s.push('<div class="hovermenu">'); // Everything below this line will appear when the mouse hovers over one of the links above
+
+    if (entry.name !== account_name) {
+        // Moderate
+        s.push('<span class="tool">');
+        s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
+        s.push('<span class="tool_anchor"><span class="tooltip">Rate this post.<br><br>');
+        s.push(`Current rating: <div id='h.${entry.id}'></div><br><br>`);
+        s.push('Your ratings help us determine which posts to show. (Our A.I. will learn from your ratings. The author will not be informed who rated the post.)');
+        s.push('</span></span>');
+        s.push('</span>');
+    }
 
     // Link
+    s.push('<span class="tool">');
     s.push(`<a href="?post=${entry.id}" onclick="return copy_text('${crop_params(window.location.href)}?post=${entry.id}')">link</a><br>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">Click to copy a direct link to this post into the clipboard. You can paste it wherever you want to reference this post.</span></span>`);
+    s.push('</span>');
 
     // Delete
     if (admin) {
@@ -965,7 +967,7 @@ function make_op(newDiv, entry)
     s.push('<table><tr>');
     s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}">`);
     s.push('</td><td width=4px></td>');
-    s.push(`<td><p><b>${entry.name}</b><br>`);
+    s.push(`<td><p><b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
     s.push(`<big><big>${entry.text}</big></big></p></td>`);
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
@@ -1026,7 +1028,7 @@ function make_rp(newDiv, entry)
         // Peanut gallery comment
         s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top><p>');
-        s.push(`<b>${entry.name}</b><br>`);
+        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
         s.push(entry.text);
         s.push('</p></td>');
     } else {
@@ -1035,7 +1037,7 @@ function make_rp(newDiv, entry)
         if (image_on_left)
             s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top><p>');
-        s.push(`<b>${entry.name}</b><br>`);
+        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
         s.push(entry.text);
         s.push('</p></td>');
         if (!image_on_left)

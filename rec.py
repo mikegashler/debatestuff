@@ -1,4 +1,4 @@
-from typing import Tuple, Mapping, Any, Optional, List, Dict
+from typing import Tuple, Mapping, Any, Optional, List, Dict, Set
 import numpy as np
 import tensorflow as tf
 import nn
@@ -101,16 +101,14 @@ class Engine:
         self.batch_items = np.empty([self.model.batch_size, PROFILE_SIZE], dtype=np.float32)
         self.batch_ratings = np.empty([self.model.batch_size, len(rating_choices)], dtype=np.float32)
 
-        self.banned_addresses: List[str] = []
-        self.banned_sessions: List[str] = []
+        self.banned_addresses: Set[str] = set()
 
     def marshal(self) -> Mapping[str, Any]:
         return {
                 'model': self.model.marshal(),
                 'rating_freq': rating_freq,
                 'rating_count': rating_count,
-                'banned_addrs': self.banned_addresses,
-                'banned_sessions': self.banned_sessions,
+                'banned_addrs': list(self.banned_addresses),
             }
 
     def unmarshal(self, ob: Mapping[str, Any]) -> None:
@@ -119,8 +117,7 @@ class Engine:
         global rating_count
         rating_freq = ob['rating_freq']
         rating_count = ob['rating_count']
-        self.banned_addresses = ob['banned_addrs']
-        self.banned_sessions = ob['banned_sessions']
+        self.banned_addresses = set(ob['banned_addrs'])
 
     def rate(self, user_id: str, item_id: str, rating: List[float]) -> None:
         # Update the aioff rating counters for this post
