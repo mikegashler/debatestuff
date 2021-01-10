@@ -20,6 +20,7 @@ class Post():
         self.account_id = account_id
         self.children: List[str] = []
         self.wl: List[str] = []
+        self.emos: List[Tuple[int, str]] = []
         self.ratings: Optional[List[int]] = None
         self.rating_count = 0
 
@@ -32,6 +33,7 @@ class Post():
             'acc': self.account_id,
             'chil': self.children,
             'wl': self.wl,
+            'emos': self.emos,
             'rats': self.ratings,
             'rc': self.rating_count,
         }
@@ -41,6 +43,7 @@ class Post():
         post = Post(id, ob['par'], ob['op'], ob['type'], ob['text'], ob['acc'])
         post.children = ob['chil']
         post.wl = ob['wl']
+        post.emos = ob['emos']
         post.ratings = ob['rats']
         post.rating_count = ob['rc']
         return post
@@ -62,6 +65,8 @@ class Post():
 
     def encode_for_client(self, account_id: str, depth: int) -> Dict[str, Any]:
         # Give the post content to the client
+        if len(self.emos) > 0:
+            print('*** got emos')
         outgoing_packet: Dict[str, Any] = {
             'act': 'add',
             'id': self.id,
@@ -69,6 +74,7 @@ class Post():
             'type': self.type,
             'text': self.text,
             'dep': depth,
+            'emos': self.emos[-8:],
         }
 
         # Give the client the author's picture and name

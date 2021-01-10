@@ -883,9 +883,28 @@ function accept_challenge(pod_id)
     });
 }
 
+function add_emo(id, emo, name)
+{
+    // Create an emo span
+    let emo_display = document.getElementById(`f.${id}`);
+    let emo_span = document.createElement("span");
+    emo_span.className = 'tool';
+    let s = [];
+    s.push(`<img src="emojis/${emojis[emo].toLowerCase()}.png" height=24>`);
+    s.push(`<span class="tool_anchor"><span class="tooltip">From: ${name}</span></span>`);
+    emo_span.innerHTML = s.join('');
+
+    // Add the emo span (bumping off the first one if needed)
+    if (emo_display.children.length >= 8) {
+        emo_display.children[0].remove();
+    }
+    emo_display.appendChild(emo_span);
+}
+
 // ID Prefixes:
 // d = node
-// e = emojis
+// e = emoji choices
+// f = emoji display
 // h = hint about rating
 // m = moderation div
 // n = nursery (div for child nodes)
@@ -902,7 +921,7 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     if (entry.name !== account_name) {
         // React
         s.push('<span class="tool">');
-        s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">emote</a><br>`);
+        s.push(`<a href="#javascript:void(0)" onclick="show_react_div('${entry.id}')">thank</a><br>`);
         s.push(`<span class="tool_anchor"><span class="tooltip">Express a positive emotion for the author. (The author will be notified about your reaction. Our A.I. will not be informed.)</span></span>`);
         s.push('</span>');
     }
@@ -921,9 +940,10 @@ function add_rate_and_respond_links(s, entry, allow_reply)
         // Moderate
         s.push('<span class="tool">');
         s.push(`<a href="#javascript:void(0)" onclick="show_rate_div('${entry.id}')">rate</a><br>`);
-        s.push('<span class="tool_anchor"><span class="tooltip">Rate this post.<br><br>');
-        s.push(`Current rating: <div id='h.${entry.id}'></div><br><br>`);
-        s.push('Your ratings help us determine which posts to show. (Our A.I. will learn from your ratings. The author will not be informed who rated the post.)');
+        s.push('<span class="tool_anchor"><span class="tooltip">');
+        s.push(`<div id='h.${entry.id}'></div><br><br>`);
+        s.push('If your opinion differs from the rating above, please consider rating this post. Your ratings help our A.I. determine which posts to show others who make similar ratings. ');
+        s.push('Only the A.I. will receive your ratings. The author will not be informed who rated the post.');
         s.push('</span></span>');
         s.push('</span>');
     }
@@ -967,7 +987,7 @@ function make_op(newDiv, entry)
     s.push('<table><tr>');
     s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}">`);
     s.push('</td><td width=4px></td>');
-    s.push(`<td><p><b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
+    s.push(`<td><p><b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>&nbsp;&nbsp;<span id='f.${entry.id}'></span><br>`);
     s.push(`<big><big>${entry.text}</big></big></p></td>`);
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
@@ -977,6 +997,11 @@ function make_op(newDiv, entry)
     s.push(`<div class="hidden" id="m.${entry.id}"></div>\n`);
     s.push(`<div id="n.${entry.id}"></div>\n`);
     newDiv.innerHTML = s.join('');
+
+    // Display the emojis that have been attached to this post
+    for (emo of entry.emos) {
+        add_emo(entry.id, emo[0], emo[1]);
+    }
 }
 
 function make_pod(newDiv, entry)
@@ -1028,7 +1053,8 @@ function make_rp(newDiv, entry)
         // Peanut gallery comment
         s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top><p>');
-        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
+        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>&nbsp;&nbsp;<span id='f.${entry.id}'></span>`);
+        s.push('<br>');
         s.push(entry.text);
         s.push('</p></td>');
     } else {
@@ -1037,7 +1063,8 @@ function make_rp(newDiv, entry)
         if (image_on_left)
             s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top><p>');
-        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b><br>`);
+        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>&nbsp;&nbsp;<span id='f.${entry.id}'></span>`);
+        s.push('<br>');
         s.push(entry.text);
         s.push('</p></td>');
         if (!image_on_left)
@@ -1055,6 +1082,11 @@ function make_rp(newDiv, entry)
         s.push(`<div class="hidden indent" id="r.${entry.id}"></div>\n`);
     }
     newDiv.innerHTML = s.join('');
+
+    // Display the emojis that have been attached to this post
+    for (emo of entry.emos) {
+        add_emo(entry.id, emo[0], emo[1]);
+    }
 }
 
 function store_ratings(entry)
@@ -1111,11 +1143,15 @@ function set_focus(id)
     //node.scrollIntoView();
 }
 
+// Returns true iff a show/hide pass should be performed
 function update_entry(entry)
 {
     if (entry.act === 'add') {
         add_node(entry);
         return true;
+    } else if (entry.act === 'emo') {
+        add_emo(entry.id, entry.emo, entry.name);
+        return false;
     } else if (entry.act === 'focus') {
         let id = entry.id;
         setTimeout(function() { set_focus(id); }, 200); // a little delay b/c the new comment may not be added yet

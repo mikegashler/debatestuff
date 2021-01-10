@@ -224,7 +224,16 @@ def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Di
         elif act == 'react': # React to a post
             post = posts.post_cache[incoming_packet['id']]
             emo = incoming_packet['emo']
+            if emo < 0 or emo >= 12:
+                raise ValueError('out of range emoticon index')
+            post.emos.append((emo, account.name))
             notifs.notify(post.account_id, f'react_{emo}', post.id, account.id)
+            updates.append({
+                'act': 'emo',
+                'id': incoming_packet['id'],
+                'emo': emo,
+                'name': account.name,
+            })
         elif act == 'rate': # Rate a comment
             post = posts.post_cache[incoming_packet['id']]
             if post.account_id == account.id:
