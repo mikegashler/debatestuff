@@ -428,7 +428,7 @@ function httpPost(url, payload, callback)
         if(request.readyState == 4)
         {
             if(request.status == 200)
-            callback(request.responseText);
+                callback(request.responseText);
             else
             {
                 if(request.status == 0 && request.statusText.length == 0)
@@ -439,13 +439,13 @@ function httpPost(url, payload, callback)
         }
     };
     request.open('post', url, true);
+    request.setRequestHeader('Brownie', `sid=${session_id}`)
     request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     request.send(payload);
 }
 
 function outgoing(payload)
 {
-    payload.session_id = session_id;
     payload.post = post;
     payload.rev = rev;
     payload.ops = op_list;
@@ -756,6 +756,46 @@ function showCreateMenu()
     }
 }
 
+function show_upload_image()
+{
+    let el = document.getElementById('upload_image_div');
+    if (el.style.display !== 'inline-block') {
+        el.style.display = 'inline-block';
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+function submit_upload_image()
+{
+    let bb = document.getElementById('browse_button1');
+    let file = bb.files[0];
+    let formData = new FormData();
+    formData.append('file', file);
+    let request = new XMLHttpRequest();
+    request.onreadystatechange = function()
+    {
+        if(request.readyState == 4)
+        {
+            if(request.status == 200)
+                incoming(request.responseText);
+            else
+            {
+                if(request.status == 0 && request.statusText.length == 0)
+                    alert("Submit image conneciton failed");
+                else
+                    alert("Server returned status " + request.status + ", " + request.statusText);
+            }
+        }
+    };
+    request.open('POST', 'feed_ajax.html', true);
+    request.setRequestHeader('Brownie', `sid=${session_id}`)
+    request.send(formData);
+    bb.value = null;
+    let el = document.getElementById('upload_image_div');
+    el.style.display = 'none';
+}
+
 function showNotifications()
 {
     let el = document.getElementById('notifications');
@@ -1009,8 +1049,18 @@ function make_pod(newDiv, entry)
     let s = [];
     s.push('<table><tr><td>');
     s.push('<table cellpadding=10px><tr>');
-    s.push(`<td valign=top><h3>${entry.text}</h3></td>`);
-    //s.push(`<td>${entry.id}</td>`);
+    s.push('<td valign=top>');
+    s.push('<span class="tool">');
+    s.push(`<h3>${entry.text}</h3>`);
+    s.push('<span class="tool_anchor"><span class="tooltip">');
+    if (entry.text === 'Open discussion')
+        s.push('Everyone is welcome to participate in this discussion.');
+    else if (entry.text === 'One-on-one debate')
+        s.push('Only the two debaters may post here. Others should comment in the peanut gallery.');
+    else if (entry.text === 'Peanut gallery')
+        s.push('A place where anyone may post comments.');
+    s.push('</span></span></span>');
+    s.push('</td>');
     s.push('</tr></table>');
     s.push('</td></tr></table>\n');
     s.push(`<div class="indent" id="n.${entry.id}"></div>\n`);
@@ -1143,6 +1193,11 @@ function set_focus(id)
     //node.scrollIntoView();
 }
 
+function on_receive_uploaded_image(filename)
+{
+    alert(`Received uploaded file ${filename}`);
+}
+
 // Returns true iff a show/hide pass should be performed
 function update_entry(entry)
 {
@@ -1176,6 +1231,8 @@ function update_entry(entry)
         else
             el.innerHTML = `Notifications&nbsp;<font color="yellow">(${entry.val})</red>`;
         return false;
+    } else if (entry.act === 'upload') {
+        on_receive_uploaded_image(entry.file);
     } else {
         let msg = `unrecognized entry action ${entry.act}`;
         alert(msg);
@@ -1191,10 +1248,6 @@ function request_updates()
 function incoming(response)
 {
     let ob = JSON.parse(response);
-    if (ob.error !== undefined) {
-        alert(`Error: ${ob.error}`);
-        return;
-    }
     if (ob.updates === undefined) {
         alert(`No updates in ${JSON.stringify(ob)}`);
     }
@@ -1203,9 +1256,11 @@ function incoming(response)
         if(update_entry(entry)) // Receive new updates
             changed_posts = true;
     }
-    rev = ob.rev;
-    op_list = ob.ops;
-    op_revs = ob.opr;
+    if (ob.rev !== undefined) {
+        rev = ob.rev;
+        op_list = ob.ops;
+        op_revs = ob.opr;
+    }
     if (changed_posts) {
         refresh_comments(); // Determine which comments to show or hide, and add rating information
     }
@@ -1390,7 +1445,14 @@ function init()
         </div><br>
         <h3>Enter your debate topic.</h3>
         (A good debate topic makes <u>one</u> claim and provides <u>one</u> supporting reason.)<br>
-        <textarea id="t_debate_topic" rows="2" cols="50"  maxlength="1500" onkeyup="on_textarea_change(this, 'u_debate_topic')"></textarea><br>
+        <table><tr>
+            <td><textarea id="t_debate_topic" rows="2" cols="50"  maxlength="1500" onkeyup="on_textarea_change(this, 'u_debate_topic')"></textarea></td>
+            <td><a onclick="show_upload_image()" href="javascript:void(0);">image</a>
+                <div id='upload_image_div' class='hidden'>
+                    <input id="browse_button1" name="file" type="file" onchange="submit_upload_image()">
+                </div>
+            </td>
+        </tr></table>
         <button type="button" onclick="startNewDebate()">Post</button>
         &nbsp;<button type="button" onclick="closeCreateMenu()">Cancel</button>
         &nbsp;&nbsp;&nbsp;<span id="u_debate_topic"></span>

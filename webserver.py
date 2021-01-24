@@ -8,7 +8,7 @@ import urllib.request, urllib.parse, urllib.error
 from http.cookies import SimpleCookie
 import re
 import posixpath
-import datetime
+from datetime import datetime, timedelta
 import sessions
 
 
@@ -28,7 +28,7 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         else:
             self.send_header('Content-type', 'text/html')
 
-        expires = datetime.datetime.utcnow() + datetime.timedelta(days=720)
+        expires = datetime.utcnow() + timedelta(days=720)
         s_expires = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
         self.send_header('Set-Cookie', f'sid={session_id}; samesite=strict; Expires={s_expires}')
         self.end_headers()
@@ -93,40 +93,46 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         if filename[0] == '/':
             filename = filename[1:]
 
-        if filename == 'receive_image.html':
-            # Parse cookies
-            session_id = ''
-            cookie = SimpleCookie(self.headers.get('Cookie')) # type: ignore
-            if 'sid' in cookie:
+        # Parse cookies
+        session_id = ''
+        cookie = SimpleCookie(self.headers.get('Cookie')) # type: ignore
+        if 'sid' in cookie:
+            session_id = cookie['sid'].value
+        else:
+            # The XHR specification forbids clients from setting 'Cookie',
+            # so we work around that with 'Brownie' instead.
+            brownie = SimpleCookie(self.headers.get('Brownie')) # type: ignore
+            if 'sid' in brownie:
                 session_id = cookie['sid'].value
             else:
                 raise ValueError('No cookie in POST with uploaded file.')
-            session = sessions.get_or_make_session(session_id, ip_address)
+        session = sessions.get_or_make_session(session_id, ip_address)
 
+        upload_file_type = 'multipart/form-data'
+        if filename == 'receive_image.html':
             response = simpleWebServerPages[filename]({}, session)
             ajax_params = {}
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             self.wfile.write(bytes(response, 'utf8'))
+        elif self.headers.get('Content-Type')[:len(upload_file_type)] == upload_file_type:
+            t = datetime.now()
+            fn = f'{session_id}_{t.year:04}-{t.month:02}-{t.day:02}_{t.hour:02}-{t.minute:02}-{t.second:02}-{t.microsecond:06}.jpeg'
+            self.receive_file(f'/tmp/{fn}', 16000000)
+            response = simpleWebServerPages[filename]({
+                'act': 'upload',
+                'file': fn,
+            }, session)
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(bytes(json.dumps(response), 'utf8'))
         else:
             # Parse content
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
             ajax_params = json.loads(post_body)
-
-            # Parse cookies
-            session_id = ''
-            if 'session_id' in ajax_params:
-                session_id = ajax_params['session_id']
-            if len(session_id) != sessions.COOKIE_LEN:
-                cookie = SimpleCookie(self.headers.get('Cookie'))
-                if 'sid' in cookie:
-                    session_id = cookie['sid'].value
-                else:
-                    raise ValueError('No cookie with POST. This is probably an error')
-                    session_id = sessions.new_session_id()
-            session = sessions.get_or_make_session(session_id, ip_address)
 
             # Generate a response
             response = simpleWebServerPages[filename](ajax_params, session)

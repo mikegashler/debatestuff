@@ -65,8 +65,6 @@ class Post():
 
     def encode_for_client(self, account_id: str, depth: int) -> Dict[str, Any]:
         # Give the post content to the client
-        if len(self.emos) > 0:
-            print('*** got emos')
         outgoing_packet: Dict[str, Any] = {
             'act': 'add',
             'id': self.id,

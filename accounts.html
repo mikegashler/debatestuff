@@ -129,6 +129,7 @@ function httpPost(url, payload, callback)
         }
     };
     request.open('post', url, true);
+    request.setRequestHeader('Brownie', `sid=${session_id}`)
     request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     request.send(payload);
 }
@@ -148,7 +149,6 @@ function show_or_hide_new_account_div()
 
 function outgoing(payload)
 {
-    payload.session_id = session_id;
     httpPost("account_ajax.html", JSON.stringify(payload), incoming);
 }
 
@@ -314,7 +314,7 @@ function init()
             s.push('</a></td><td>');
             s.push(`<b><a onclick="switch_account(${i})" href="javascript:void(0);">`);
             s.push(`${account_names[i]}</a></b></td>`);
-            s.push(`<td>Password: <input type="text" id="pw_${i}" onkeyup="pw_onkeyup(${i}, event);" size=10></td>`);
+            s.push(`<td>Password: <input type="password" id="pw_${i}" onkeyup="pw_onkeyup(${i}, event);" size=10></td>`);
             s.push('</tr>');
         }
         s.push('<tr><td></td><td>');

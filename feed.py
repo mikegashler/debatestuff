@@ -10,6 +10,7 @@ import traceback
 import posts
 import history
 import notifs
+from PIL import Image
 
 # Load the feed page
 with open('feed.html') as f:
@@ -215,7 +216,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
 def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Dict[str, Any]:
     updates: List[Dict[str, Any]] = []
     try:
-        if not 'act' in incoming_packet or not 'rev' in incoming_packet or not 'ops' in incoming_packet:
+        if not 'act' in incoming_packet:
             raise ValueError('malformed request')
         account = accounts.active_account(session)
         act = incoming_packet['act']
@@ -374,6 +375,23 @@ def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Di
         elif act == 'change_thresh': # Change the threshold by moving the slider
             account.thresh = incoming_packet['val']
             accounts.account_cache.set_modified(account.id)
+        elif act == 'upload': # Receive an uploaded file
+            fn = incoming_packet['file']
+            max_wid = 600
+            max_hgt = 800
+            img = Image.open(f'/tmp/{fn}')
+            if img.size[0] > max_wid or img.size[1] > max_hgt:
+                if img.size[0] / max_wid > img.size[1] / max_hgt:
+                    img = img.resize((max_wid, img.size[1] * max_wid // img.size[0]), Image.ANTIALIAS)
+                else:
+                    img = img.resize((img.size[0] * max_hgt // img.size[1], max_hgt), Image.ANTIALIAS)
+            img = img.convert('RGB')
+            final_filename = f'post_pics/{fn}'
+            img.save(final_filename)
+            updates.append({
+                'act': 'upload',
+                'file': f'post_pics/{fn}'
+            })
         else:
             raise RuntimeError('unrecognized action')
     except Exception as e:
@@ -382,19 +400,24 @@ def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Di
             'act': 'alert',
             'msg': str(e), # repr(e),
         })
-    new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account.id)
-    annotate_updates(updates, account)
-    notif_in = notifs.get_or_make_notif_in(account.id)
-    updates.append({
-        'act': 'nc', # notification count
-        'val': len(notif_in.notifs),
-    })
-    return {
-        'rev': new_rev,
-        'ops': new_op_list,
-        'opr': new_op_revs,
-        'updates': updates,
-    }
+    if 'rev' in incoming_packet:
+        new_rev, new_op_list, new_op_revs = add_updates(updates, incoming_packet, account.id)
+        annotate_updates(updates, account)
+        notif_in = notifs.get_or_make_notif_in(account.id)
+        updates.append({
+            'act': 'nc', # notification count
+            'val': len(notif_in.notifs),
+        })
+        return {
+            'rev': new_rev,
+            'ops': new_op_list,
+            'opr': new_op_revs,
+            'updates': updates,
+        }
+    else:
+        return {
+            'updates': updates,
+        }
 
 def pick_ops(post: str) -> Tuple[bool, List[str]]:
     op_list: List[str] = []
