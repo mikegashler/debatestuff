@@ -152,11 +152,12 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
     rev = incoming_packet['rev']
     op_list = incoming_packet['ops']
     op_revs = incoming_packet['opr']
-    assert len(op_revs) == len(op_list)
+    assert len(op_revs) == len(op_list), f'misalignment: {op_list} <--> {op_revs}. (This may occur if the init function in feed.html did not finish.)'
 
     # Find the ancestor category (and pick up the op if we don't have any)
     depth = -1 # depth above the OP
     category = posts.post_cache[focus_post_id]
+    allow_new_ops = (category.type == 'cat' and (len(category.children) == 0 or posts.post_cache[category.children[0]].type == 'op'))
     while category.type != 'cat':
         if len(op_list) == 0 and category.type == 'op':
             op_list.append(category.id)
@@ -178,7 +179,7 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
                 break
         stack.reverse()
         for i, node in enumerate(stack):
-            updates.append(node.encode_for_client(account_id, i))
+            updates.append(node.encode_for_client(account_id, i, allow_new_ops and i == len(stack) - 1))
 
         # Add the sub-branch of categories
         if len(category.children) > 0 and posts.post_cache[category.children[0]].type == 'cat':
@@ -419,7 +420,7 @@ def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Di
             'updates': updates,
         }
 
-def pick_ops(post: str) -> Tuple[bool, List[str]]:
+def pick_ops(post: str) -> List[str]:
     op_list: List[str] = []
     node = posts.post_cache[post]
     is_leaf_cat = (node.type == 'cat' and (len(node.children) == 0 or posts.post_cache[node.children[0]].type == 'op'))
@@ -428,18 +429,17 @@ def pick_ops(post: str) -> Tuple[bool, List[str]]:
             op_list.append(node.children[i])
             if len(op_list) >= 6:
                 break
-    return is_leaf_cat, op_list
+    return op_list
 
 def do_feed(query: Mapping[str, Any], session: sessions.Session) -> str:
     session.query = query
     account = accounts.active_account(session)
     post = query['post'] if 'post' in query else '000000000000'
-    is_leaf_cat, op_list = pick_ops(post)
+    op_list = pick_ops(post)
     globals = [
         'let session_id = \'', session.id, '\';\n',
         'let post = "', post, '";\n',
         'let op_list = ', str(op_list), ';\n',
-        'let allow_new_debate = ', 'true' if is_leaf_cat else 'false', ';\n',
         'let admin = ', 'true' if account.admin else 'false', ';\n',
         'let account_name = \'', account.name, '\';\n',
         'let account_pic = \'', account.image, '\';\n',

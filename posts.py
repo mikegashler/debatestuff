@@ -63,7 +63,7 @@ class Post():
             self.ratings[i] += max(0, min(1, int(ratings[i])))
         self.rating_count += 1
 
-    def encode_for_client(self, account_id: str, depth: int) -> Dict[str, Any]:
+    def encode_for_client(self, account_id:str, depth:int, add_new_op:bool=False) -> Dict[str, Any]:
         # Give the post content to the client
         outgoing_packet: Dict[str, Any] = {
             'act': 'add',
@@ -74,6 +74,10 @@ class Post():
             'dep': depth,
             'emos': self.emos[-8:],
         }
+
+        # Allow adding a new OP
+        if add_new_op:
+            outgoing_packet['nop'] = True
 
         # Give the client the author's picture and name
         if len(self.account_id) > 0:

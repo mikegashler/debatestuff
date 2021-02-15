@@ -16,18 +16,21 @@ sws: 'SimpleWebServer'
 simpleWebServerPages: Mapping[str, Any] = {}
 class SimpleWebServer(BaseHTTPRequestHandler):
     def __init__(self, *args: Any) -> None:
+        self.mime_types: Dict[str, str] = {}
+        self.mime_types['.svg'] = 'image/svg+xml'
+        self.mime_types['.jpeg'] = 'image/jpeg'
+        self.mime_types['.jpg'] = 'image/jpeg'
+        self.mime_types['.png'] = 'image/png'
+        self.mime_types['.js'] = 'text/javascript'
         BaseHTTPRequestHandler.__init__(self, *args)
 
     def send_file(self, filename: str, content: str, session_id: str) -> None:
         self.send_response(200)
         name, ext = os.path.splitext(filename)
-        if ext == '.svg':
-            self.send_header('Content-type', 'image/svg+xml')
-        elif ext == '.jpeg' or ext == '.jpg':
-            self.send_header('Content-type', 'image/jpeg')
+        if ext in self.mime_types:
+            self.send_header('Content-type', self.mime_types[ext])
         else:
             self.send_header('Content-type', 'text/html')
-
         expires = datetime.utcnow() + timedelta(days=720)
         s_expires = expires.strftime("%a, %d %b %Y %H:%M:%S GMT")
         self.send_header('Set-Cookie', f'sid={session_id}; samesite=strict; Expires={s_expires}')
@@ -147,8 +150,11 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         if not content_type:
             assert False, "No content-type header"
         boundary = content_type.split("=")[1].encode()
+        # print(f'boundary={boundary}')
         remainbytes = int(self.headers['content-length'])
+        # print(f'packet size={remainbytes}')
         assert remainbytes <= max_size, 'File too big'
+        assert remainbytes > 0, 'Empty file packet'
         line = self.rfile.readline()
         remainbytes -= len(line)
         if not boundary in line:
@@ -156,10 +162,19 @@ class SimpleWebServer(BaseHTTPRequestHandler):
         line = self.rfile.readline()
         remainbytes -= len(line)
         fn = re.findall(r'Content-Disposition.*name="file"; filename="(.*)"', line.decode()) or ['']
+
+        # Skip b'Content-Type: image/jpeg\r\n'
         line = self.rfile.readline()
         remainbytes -= len(line)
+        # print(f'discard_line_1={line}') # type: ignore
+
+        # Skip b'\r\n'
         line = self.rfile.readline()
         remainbytes -= len(line)
+        print(f'discard_line_2={line}') # type: ignore
+
+        # Read the file
+        assert remainbytes > 0, 'Empty file'
         with open(save_as_name, 'wb') as out:
             preline = self.rfile.readline()
             remainbytes -= len(preline)

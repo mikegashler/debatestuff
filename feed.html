@@ -129,12 +129,14 @@
             visibility: visible;
         }
     </style>
+    <script type="text/javascript" src="slider.js"></script>
+    <script type="text/javascript" src="priority_queue.js"></script>
     <script type="text/javascript">
 //<globals>//
 let rev = 0;
 let op_revs = [];
 let children = {}; // Maps node ids to lists of child ids
-
+let active_text_area = null;
 
 let tag_lines = [
     "An anti-social network.<br>Friends are lame.<br>Foes teach you more.",
@@ -151,274 +153,6 @@ let aioff_scores = {};
 let aion_scores = {};
 let updated_thresh = -1;
 
-// -------------
-// Slider widget
-// -------------
-function slider_mouse_down(id) {
-	window.activeSliderId = id;
-	return false;
-}
-
-function slider_mouse_up(e_event, b_watching) {
-	if (window.activeSliderId != null) {
-		var slider = window.active_sliders[window.activeSliderId];
-		slider.set_value(slider.minValue + (slider.is_vertical
-			? (slider.pathLength - parseInt(slider.el_slider.style.top) + slider.pathTop)
-			: (parseInt(slider.el_slider.style.left) - slider.pathLeft)) / slider.pix2value);
-		if (b_watching)	return;
-		window.activeSliderId = null;
-	}
-	if (window.saved_mouse_up)
-		return window.saved_mouse_up(e_event);
-}
-
-function drag_slider(e_event) {
-    // check if in drag mode
-	if (window.activeSliderId != null) {
-		var slider = window.active_sliders[window.activeSliderId];
-		var pxOffset;
-		if (slider.is_vertical) {
-			var sliderTop = window.mouseY - slider.sliderHeight / 2 - slider.get_abs_pos(1, 1) - 3;
-			// limit the slider movement
-			if (sliderTop < slider.pathTop)
-				sliderTop = slider.pathTop;
-			var pxMax = slider.pathTop + slider.pathLength;
-			if (sliderTop > pxMax)
-				sliderTop = pxMax;
-			slider.el_slider.style.top = sliderTop + 'px';
-			pxOffset = slider.pathLength - sliderTop + slider.pathTop;
-		}
-		else {
-			var sliderLeft = window.mouseX - slider.sliderWidth / 2 - slider.get_abs_pos(0, 1) - 3;
-			// limit the slider movement
-			if (sliderLeft < slider.pathLeft)
-				sliderLeft = slider.pathLeft;
-			var pxMax = slider.pathLeft + slider.pathLength;
-			if (sliderLeft > pxMax)
-				sliderLeft = pxMax;
-			slider.el_slider.style.left = sliderLeft + 'px';
-			pxOffset = sliderLeft - slider.pathLeft;
-		}
-		slider_mouse_up(e_event, 1);
-		return false;
-	}
-	if (window.saved_mouse_move)
-		return window.saved_mouse_move(e_event);
-}
-
-function slider_mouse_move(e_event) {
-
-	if (!e_event && window.event) e_event = window.event;
-
-	// save mouse coordinates
-	if (e_event) {
-		window.mouseX = e_event.clientX + slider_filter_results (
-			window.pageXOffset ? window.pageXOffset : 0,
-			document.documentElement ? document.documentElement.scrollLeft : 0,
-			document.body ? document.body.scrollLeft : 0
-		);
-		window.mouseY = e_event.clientY + slider_filter_results (
-			window.pageYOffset ? window.pageYOffset : 0,
-			document.documentElement ? document.documentElement.scrollTop : 0,
-			document.body ? document.body.scrollTop : 0
-		);
-	}
-    return drag_slider(e_event);
-}
-
-function slider_touch_move(e_event) {
-
-	if (!e_event && window.event) e_event = window.event;
-
-	// save touch coordinates
-	if (e_event) {
-		window.mouseX = e_event.changedTouches[0].pageX + slider_filter_results (
-			window.pageXOffset ? window.pageXOffset : 0,
-			document.documentElement ? document.documentElement.scrollLeft : 0,
-			document.body ? document.body.scrollLeft : 0
-		);
-		window.mouseY = e_event.changedTouches[0].pageY + slider_filter_results (
-			window.pageYOffset ? window.pageYOffset : 0,
-			document.documentElement ? document.documentElement.scrollTop : 0,
-			document.body ? document.body.scrollTop : 0
-		);
-	}
-    return drag_slider(e_event);
-}
-
-function slider_filter_results(win, docel, body) {
-	var result = win ? win : 0;
-	if (docel && (!result || (result > docel)))
-		result = docel;
-	return body && (!result || (result > body)) ? body : result;
-}
-
-class Slider {
-	constructor(bg_filename, bg_wid, bg_hgt, fg_filename, fg_wid, fg_hgt, initial_val, on_change) {
-		// Register in a global collection
-		if (!window.active_sliders)
-			window.active_sliders = [];
-		this.id = window.active_sliders.length;
-		window.active_sliders[this.id] = this;
-
-		this.is_vertical = false;
-		this.sliderWidth = fg_wid;
-		this.sliderHeight = fg_hgt;
-		this.pathLeft = 1;
-		this.pathTop = 1;
-		this.pathLength = 300;
-		this.minValue = 5;
-		this.maxValue = 105;
-		this.step = 5;
-		this.zIndex = 1;
-
-		this.pix2value = this.pathLength / (this.maxValue - this.minValue);
-		if (this.value == null)
-			this.value = this.minValue;
-
-		// generate the control's HTML
-		document.write(
-			'<div style="width:' + bg_wid + 'px;height:' + bg_hgt + 'px;border:0; background-image:url(' + bg_filename + ')" id="sl' + this.id + 'base">' +
-			'<img src="' + fg_filename + '" width="' + fg_wid + '" height="' + fg_hgt + '" border="0" style="position:relative;left:' + this.pathLeft + 'px;top:' + this.pathTop + 'px;z-index:' + this.zIndex + ';cursor:pointer;visibility:hidden;" name="sl' + this.id + 'slider" id="sl' + this.id + 'slider" onmousedown="return slider_mouse_down(' + this.id + ')" ontouchstart="return slider_mouse_down(' + this.id + ')"/></div>'
-		);
-		this.el_base = document.getElementById('sl' + this.id + 'base');
-		this.el_slider = document.getElementById('sl' + this.id + 'slider');
-
-		// Hook up document/window events
-		if (!window.saved_mouse_move && document.onmousemove != slider_mouse_move) {
-			window.saved_mouse_move = document.onmousemove;
-			document.onmousemove = slider_mouse_move;
-            document.ontouchmove = slider_touch_move;
-		}
-		if (!window.saved_mouse_up && document.onmouseup != slider_mouse_up) {
-			window.saved_mouse_up = document.onmouseup;
-			document.onmouseup = slider_mouse_up;
-            document.ontouchend = slider_mouse_up;
-		}
-		this.on_change = on_change;
-		this.value = initial_val - 1;
-		this.set_value(initial_val);
-		this.el_slider.style.visibility = 'visible';
-	}
-
-	set_value(value) {
-		if (value == null)
-			value = this.value == null ? this.minValue : this.value;
-		if (isNaN(value))
-			return;
-
-		// Round to closest step
-		if (this.step)
-			value = Math.round((value - this.minValue) / this.step) * this.step + this.minValue;
-
-		// Round away extreme decimals (like .00001 or .99999)
-		if (value % 1)
-			value = Math.round(value * 1e5) / 1e5;
-
-		// Set the value
-		value = Math.min(this.maxValue, Math.max(this.minValue, value));
-
-		// Move the slider
-		if (this.is_vertical)
-			this.el_slider.style.top  = (this.pathTop + this.pathLength - Math.round((value - this.minValue) * this.pix2value)) + 'px';
-		else
-			this.el_slider.style.left = (this.pathLeft + Math.round((value - this.minValue) * this.pix2value)) + 'px';
-
-		// Report the change
-		if (this.value === value) return;
-		this.value = value;
-		if (this.on_change)
-			this.on_change(this, value);
-	}
-
-	// get absolute position of the element in the document
-	get_abs_pos(is_vertical, is_base) {
-		var pos = 0,
-			s_coord = (is_vertical ? 'Top' : 'Left');
-		var el = is_base ? this.el_base : this.el_slider;
-		var el_old = el;
-
-		while (el) {
-			pos += el["offset" + s_coord];
-			el = el.offsetParent;
-		}
-		el = el_old;
-
-		var offset;
-		while (el.tagName != "BODY") {
-			offset = el["scroll" + s_coord];
-			if (offset)
-				pos -= el["scroll" + s_coord];
-			el = el.parentNode;
-		}
-		return pos;
-	}
-}
-
-// --------------
-// Priority Queue
-// --------------
-const pq_parent = i => ((i + 1) >>> 1) - 1;
-const pq_left = i => (i << 1) + 1;
-const pq_right = i => (i + 1) << 1;
-class PriorityQueue {
-    constructor(comparator) {
-        this._heap = [];
-        this._comparator = comparator;
-    }
-
-    size() {
-        return this._heap.length;
-    }
-
-    peek() {
-        return this._heap[0];
-    }
-
-    push(value) {
-        this._heap.push(value);
-        this._siftUp();
-    }
-
-    pop() {
-        const poppedValue = this.peek();
-        const bottom = this.size() - 1;
-        if (bottom > 0) {
-            this._swap(0, bottom);
-        }
-        this._heap.pop();
-        this._siftDown();
-        return poppedValue;
-    }
-
-    _greater(i, j) { // greater means higher-priority
-        return this._comparator(this._heap[i], this._heap[j]);
-    }
-
-    _swap(i, j) {
-        [this._heap[i], this._heap[j]] = [this._heap[j], this._heap[i]];
-    }
-
-    _siftUp() {
-        let node = this.size() - 1;
-        while (node > 0 && this._greater(node, pq_parent(node))) {
-            this._swap(node, pq_parent(node));
-            node = pq_parent(node);
-        }
-    }
-
-    _siftDown() {
-        let node = 0;
-        while (
-            (pq_left(node) < this.size() && this._greater(pq_left(node), node)) ||
-            (pq_right(node) < this.size() && this._greater(pq_right(node), node))
-        ) {
-            let maxChild = (pq_right(node) < this.size() && this._greater(pq_right(node), pq_left(node))) ? pq_right(node) : pq_left(node);
-            this._swap(node, maxChild);
-            node = maxChild;
-        }
-    }
-}
 
 function httpPost(url, payload, callback)
 {
@@ -529,6 +263,17 @@ function show_rate_div(id) {
     }
 }
 
+function add_text_area(s, id, rows, maxlen) {
+    s.push('<table><tr>');
+    s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
+    s.push(`<td><a onclick="show_upload_image('${id}')" href="javascript:void(0);">image</a>`);
+    s.push(`<div id="b.${id}" class="hidden">`);
+    s.push(`<input id="c.${id}" name="file" type="file" onchange="submit_upload_image('${id}')">`);
+    s.push('</div>');
+    s.push('</td>');
+    s.push('</tr></table>');
+}
+
 function show_reply_div(id) {
     let x = document.getElementById(`r.${id}`);
     if (x.style.display === 'inline-block') {
@@ -539,7 +284,7 @@ function show_reply_div(id) {
             s.push('<table><tr><td valign="top">');
             s.push(`<img class="rounded" src="${account_pic}">`);
             s.push('</td><td>');
-            s.push(`<textarea id="t.${id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
+            add_text_area(s, id, 2, 1000);
             s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
             s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
             s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
@@ -604,7 +349,7 @@ function update_hint(id)
             }
         }
     } else {
-        console.log(`missing hint div h.${id}`);
+        //console.log(`missing hint div h.${id}`);
     }
 }
 
@@ -746,9 +491,10 @@ function submitReply(id)
     closeReply(id);
 }
 
-function showCreateMenu()
+
+function show_upload_image(id)
 {
-    let el = document.getElementById('newdebate');
+    let el = document.getElementById(`b.${id}`);
     if (el.style.display !== 'inline-block') {
         el.style.display = 'inline-block';
     } else {
@@ -756,20 +502,17 @@ function showCreateMenu()
     }
 }
 
-function show_upload_image()
+function submit_upload_image(id)
 {
-    let el = document.getElementById('upload_image_div');
-    if (el.style.display !== 'inline-block') {
-        el.style.display = 'inline-block';
-    } else {
-        el.style.display = 'none';
+    active_text_area = document.getElementById(`t.${id}`);
+    let bd = document.getElementById(`b.${id}`);
+    let bb = document.getElementById(`c.${id}`);
+    if (!bb) {
+        console.log('Failed to find the browse button');
+        return;
     }
-}
-
-function submit_upload_image()
-{
-    let bb = document.getElementById('browse_button1');
     let file = bb.files[0];
+    bd.style.display = 'none';
     let formData = new FormData();
     formData.append('file', file);
     let request = new XMLHttpRequest();
@@ -888,17 +631,11 @@ function ai_off()
     el.checked = true;
 }
 
-function closeCreateMenu()
+function startNewDebate(id)
 {
-    el = document.getElementById('newdebate');
-    el.style.display = 'none';
-}
-
-function startNewDebate()
-{
-    sel = document.getElementById('choose_opponent');
+    let sel = document.getElementById('choose_opponent');
     let mode = sel.value;
-    text_box = document.getElementById('t_debate_topic');
+    let text_box = document.getElementById(`t.${id}`);
     let text = text_box.value;
     let packet = {
         act: 'newop',
@@ -912,7 +649,6 @@ function startNewDebate()
     }
     outgoing(packet);
     text_box.value = '';
-    closeCreateMenu();
 }
 
 function accept_challenge(pod_id)
@@ -942,6 +678,8 @@ function add_emo(id, emo, name)
 }
 
 // ID Prefixes:
+// b = enclosing div for the browse button for uploading an image
+// c = browse button for uploading an image
 // d = node
 // e = emoji choices
 // f = emoji display
@@ -970,7 +708,7 @@ function add_rate_and_respond_links(s, entry, allow_reply)
     if (allow_reply) {
         s.push('<span class="tool">');
         s.push(`<a href="#javascript:void(0)" onclick="show_reply_div('${entry.id}')">reply</a><br>`);
-        s.push(`<span class="tool_anchor"><span class="tooltip">Make a verbal response</span></span>`);
+        s.push(`<span class="tool_anchor"><span class="tooltip">Compose a response</span></span>`);
         s.push('</span>');
     }
 
@@ -1014,6 +752,25 @@ function make_cat(newDiv, entry)
     }
     s.push(`<a href='?post=${entry.id}'>${entry.text}</a>\n`);
     s.push('</big></big><br>');
+
+    // Add the new OP area
+    if (entry.nop) {
+        s.push('<br><br><h3>Start a new debate:</h3>');
+        s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
+        add_text_area(s, entry.id, 4, 1500);
+        s.push('<br>Who would you like to challenge to debate?<br>');
+        s.push('<select id="choose_opponent" onchange="on_change_opponent()">');
+        s.push('<option value="open">No one--let\'s just have an open discussion</option>');
+        s.push('<option value="first">Whomever first accepts the challenge</option>');
+        s.push('<option value="name">The individual named below</option>');
+        s.push('</select><br>');
+        s.push('<div id="opponent_name_div" class="hidden">');
+        s.push('<input type="text" id="opponent"><br>');
+        s.push('</div><br>');
+        s.push(`<button type="button" onclick="startNewDebate('${entry.id}')">Post</button>`);
+        s.push('<br><br><br><br>');
+    }
+
     s.push(`<div id="n.${entry.id}"></div>\n`);
     newDiv.innerHTML = s.join('');
 }
@@ -1195,7 +952,18 @@ function set_focus(id)
 
 function on_receive_uploaded_image(filename)
 {
-    alert(`Received uploaded file ${filename}`);
+    if (!active_text_area) {
+        alert(`Received uploaded file ${filename}, but there is no active text area`);
+        return;
+    }
+    let insert_me = `<img src="${filename}">`;
+    if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
+        active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
+            + insert_me
+            + active_text_area.value.substring(active_text_area.selectionEnd, active_text_area.value.length);
+    } else {
+        active_text_area.value += insert_me;
+    }
 }
 
 // Returns true iff a show/hide pass should be performed
@@ -1225,11 +993,11 @@ function update_entry(entry)
         update_notifications(entry.pos, entry.msgs);
         return false;
     } else if (entry.act === 'nc') {
-        let el = document.getElementById('notif_link');
+        let notif_count_div = document.getElementById('notif_count');
         if (entry.val === 0)
-            el.innerHTML = "Notifications";
+            notif_count_div.innerHTML = "";
         else
-            el.innerHTML = `Notifications&nbsp;<font color="yellow">(${entry.val})</red>`;
+            notif_count_div.innerHTML = `<font color="yellow">(${entry.val})</font>`;
         return false;
     } else if (entry.act === 'upload') {
         on_receive_uploaded_image(entry.file);
@@ -1266,14 +1034,18 @@ function incoming(response)
     }
 }
 
-function on_change_opponent(id)
+function on_change_opponent()
 {
+    console.log('changing opponent');
     let sel = document.getElementById('choose_opponent');
     let opponent_name = document.getElementById('opponent_name_div');
     let val = sel.value;
+    console.log(val);
     if (val === 'name') {
+        console.log('showing opponent');
         opponent_name.style.display = 'inline-block';
     } else {
+        console.log('hiding opponent');
         opponent_name.style.display = 'none';
     }
 }
@@ -1308,6 +1080,7 @@ function on_slider_change(slider, val)
 
 function on_textarea_change(textarea, counter_id)
 {
+    active_text_area = textarea;
     // if (comment_count * 2 >= rating_count && textarea.value.length % 10 == 0) {
     //     alert(`Sorry, you have rated ${rating_count} comments and have posted ${comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.`);
     // }
@@ -1350,12 +1123,6 @@ function init()
     let account_pic_span = document.getElementById('account_pic');
     account_pic_span.innerHTML = `<img class="rounded" src="${account_pic}">`;
 
-    // Show or hide the 'new debate' link
-    if (allow_new_debate) {
-        let new_debate_span = document.getElementById('new_debate');
-        new_debate_span.style.display = 'inline-block';
-    }
-
     // Show or hide the ai on/off controls
     if (rating_count > 10) {
         if (initial_ai_on) {
@@ -1396,11 +1163,9 @@ function init()
                 </tr>
                 <tr>
                     <td>
-                        <span id='new_debate' class='hidden'><a onclick="showCreateMenu()" href="javascript:void(0);">New Debate</a>
-                        &nbsp;&nbsp;&nbsp;</span>
-                        <a href="handbook.html">Handbook</a>
+                        <a onclick="showNotifications()" href="javascript:void(0);"><img src="starter_pics/bell.png"><span id="notif_count"></span></a>
                         &nbsp;&nbsp;&nbsp;
-                        <a id="notif_link" onclick="showNotifications()" href="javascript:void(0);">Notifications</a>
+                        <a href="handbook.html"><img src="starter_pics/book.png"></a>
                     </td>
                 </tr>
             </table>
@@ -1430,33 +1195,6 @@ function init()
     </tr></table>
 
     <div id='notifications' class='hidden'>
-    </div>
-    <div id='newdebate' class='hidden'>
-        <br><br>
-        <h3>Whom would you like to debate?</h3>
-        <select name="cars" id="choose_opponent" onchange="on_change_opponent()">
-            <option value="first">Whomever first accepts the challenge</option>
-            <option value="name">The individual named below</option>
-            <option value="open">No one--let's just have an open discussion</option>
-        </select><br>
-        <div id='opponent_name_div' class="hidden">
-            <br>Who would you like to challenge to debate?<br>
-            <input type="text" id="opponent"><br>
-        </div><br>
-        <h3>Enter your debate topic.</h3>
-        (A good debate topic makes <u>one</u> claim and provides <u>one</u> supporting reason.)<br>
-        <table><tr>
-            <td><textarea id="t_debate_topic" rows="2" cols="50"  maxlength="1500" onkeyup="on_textarea_change(this, 'u_debate_topic')"></textarea></td>
-            <td><a onclick="show_upload_image()" href="javascript:void(0);">image</a>
-                <div id='upload_image_div' class='hidden'>
-                    <input id="browse_button1" name="file" type="file" onchange="submit_upload_image()">
-                </div>
-            </td>
-        </tr></table>
-        <button type="button" onclick="startNewDebate()">Post</button>
-        &nbsp;<button type="button" onclick="closeCreateMenu()">Cancel</button>
-        &nbsp;&nbsp;&nbsp;<span id="u_debate_topic"></span>
-        <br><br>
     </div>
 </div>
 
