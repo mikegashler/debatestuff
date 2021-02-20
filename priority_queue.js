@@ -1,6 +1,4 @@
-// --------------
-// Priority Queue
-// --------------
+
 const pq_parent = i => ((i + 1) >>> 1) - 1;
 const pq_left = i => (i << 1) + 1;
 const pq_right = i => (i + 1) << 1;

@@ -1,6 +1,4 @@
-// -------------
-// Slider widget
-// -------------
+
 function slider_mouse_down(id) {
 	window.activeSliderId = id;
 	return false;
@@ -101,12 +99,12 @@ function slider_filter_results(win, docel, body) {
 }
 
 class Slider {
-	constructor(bg_filename, bg_wid, bg_hgt, fg_filename, fg_wid, fg_hgt, initial_val, on_change) {
+	constructor(div_id, bg_filename, bg_wid, bg_hgt, fg_filename, fg_wid, fg_hgt, initial_val, on_change) {
 		// Register in a global collection
 		if (!window.active_sliders)
 			window.active_sliders = [];
-		this.id = window.active_sliders.length;
-		window.active_sliders[this.id] = this;
+		let slider_index = window.active_sliders.length;
+		window.active_sliders[slider_index] = this;
 
 		this.is_vertical = false;
 		this.sliderWidth = fg_wid;
@@ -114,8 +112,8 @@ class Slider {
 		this.pathLeft = 1;
 		this.pathTop = 1;
 		this.pathLength = 300;
-		this.minValue = 5;
-		this.maxValue = 105;
+		this.minValue = 0;
+		this.maxValue = 100;
 		this.step = 5;
 		this.zIndex = 1;
 
@@ -123,13 +121,14 @@ class Slider {
 		if (this.value == null)
 			this.value = this.minValue;
 
-		// generate the control's HTML
-		document.write(
-			'<div style="width:' + bg_wid + 'px;height:' + bg_hgt + 'px;border:0; background-image:url(' + bg_filename + ')" id="sl' + this.id + 'base">' +
-			'<img src="' + fg_filename + '" width="' + fg_wid + '" height="' + fg_hgt + '" border="0" style="position:relative;left:' + this.pathLeft + 'px;top:' + this.pathTop + 'px;z-index:' + this.zIndex + ';cursor:pointer;visibility:hidden;" name="sl' + this.id + 'slider" id="sl' + this.id + 'slider" onmousedown="return slider_mouse_down(' + this.id + ')" ontouchstart="return slider_mouse_down(' + this.id + ')"/></div>'
-		);
-		this.el_base = document.getElementById('sl' + this.id + 'base');
-		this.el_slider = document.getElementById('sl' + this.id + 'slider');
+		// Touch up the div HTML to show a slider and tab
+		this.el_base = document.getElementById(div_id);
+		this.el_base.style.width = bg_wid;
+		this.el_base.style.height = bg_hgt;
+		this.el_base.style.border = 0;
+		this.el_base.style.backgroundImage = `url('${bg_filename}')`;
+		this.el_base.innerHTML = `<img src="${fg_filename}" width="${fg_wid}" height="${fg_hgt}" border="0" style="position:relative;left:${this.pathLeft}px;top:${this.pathTop}px;z-index:${this.zIndex};cursor:pointer;visibility:hidden;" name="sl${slider_index}slider" id="sl${slider_index}slider" onmousedown="return slider_mouse_down('${slider_index}')" ontouchstart="return slider_mouse_down('${slider_index}')">`;
+		this.el_slider = document.getElementById(`sl${slider_index}slider`);
 
 		// Hook up document/window events
 		if (!window.saved_mouse_move && document.onmousemove != slider_mouse_move) {

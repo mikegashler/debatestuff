@@ -355,60 +355,65 @@ function update_hint(id)
 
 // Filter which comments are displayed or hidden.
 // Update the rating hints.
-function refresh_comments()
+function refresh_comments(op_id)
 {
-    thresh = parseInt(document.getElementById('thresh').innerHTML);
-    if(!(thresh > 0 && thresh < 1000)) {
+    thresh = parseInt(document.getElementById(`t.${op_id}`).innerHTML);
+    if(!(thresh >= 0 && thresh < 1000)) {
         alert('problem with thresh');
     }
     isaion = document.getElementById('ai_on').checked;
     let q = new PriorityQueue(node_comparator);
-    for (let i = 0; i < op_list.length; i++) { // For each OP...
-        update_hint(op_list[i]);
-        kids = children[op_list[i]];
-        if (kids === undefined)
+    update_hint(op_id);
+    kids = children[op_id];
+    if (kids === undefined)
+        return;
+    for (let j = 0; j < kids.length; j++) { // For each pod...
+        let pod_id = kids[j];
+        let grandkids = children[pod_id];
+        if (grandkids === undefined)
             continue;
-        for (let j = 0; j < kids.length; j++) { // For each pod...
-            let pod_id = kids[j];
-            let grandkids = children[pod_id];
-            if (grandkids === undefined)
-                continue;
 
-            // Seed the priority queue with the pod's immediate children
-            for (let k = 0; k < grandkids.length; k++) {
-                let rp_id = grandkids[k];
-                q.push(rp_id);
-            }
+        // Seed the priority queue with the pod's immediate children
+        for (let k = 0; k < grandkids.length; k++) {
+            let rp_id = grandkids[k];
+            q.push(rp_id);
+        }
 
-            // Pump in a breadth-first manner
-            let nodes_shown = 0;
-            while (q.size() > 0 && nodes_shown < thresh) {
-                id = q.pop();
+        // Pump in a breadth-first manner
+        let nodes_shown = 0;
+        while (q.size() > 0 && nodes_shown < thresh) {
+            id = q.pop();
 
-                // Update the ratings hint and show the div
-                thediv = document.getElementById(`d.${id}`);
-                update_hint(id);
-                thediv.style.display = 'block';
-                nodes_shown++;
+            // Update the ratings hint and show the div
+            thediv = document.getElementById(`d.${id}`);
+            update_hint(id);
+            thediv.style.display = 'block';
+            nodes_shown++;
 
-                // Add the children
-                let nextgen = children[id];
-                if (nextgen !== undefined) {
-                    for (let j = 0; j < nextgen.length; j++) {
-                        let child_id = nextgen[j];
-                        q.push(child_id);
-                    }
+            // Add the children
+            let nextgen = children[id];
+            if (nextgen !== undefined) {
+                for (let j = 0; j < nextgen.length; j++) {
+                    let child_id = nextgen[j];
+                    q.push(child_id);
                 }
-            } // ...while we haven't yet reached our threshold
-
-            // Hide the remainder
-            while (q.size() > 0) {
-                let id = q.pop();
-                thediv = document.getElementById(`d.${id}`);
-                thediv.style.display = 'none';
             }
-        } // ...for each pod in the OP
-    } // ...for each OP
+        } // ...while we haven't yet reached our threshold
+
+        // Hide the remainder
+        while (q.size() > 0) {
+            let id = q.pop();
+            thediv = document.getElementById(`d.${id}`);
+            thediv.style.display = 'none';
+        }
+    } // ...for each pod in the OP
+}
+
+function refresh_all_comments()
+{
+    for (let op_id of op_list) {
+        refresh_comments(op_id);
+    }
 }
 
 function closeReact(id)
@@ -687,6 +692,8 @@ function add_emo(id, emo, name)
 // m = moderation div
 // n = nursery (div for child nodes)
 // r = reply div
+// s = slider div
+// t = slider text
 // u = reply text area counter
 
 
@@ -789,16 +796,22 @@ function make_op(newDiv, entry)
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
     s.push('</td>');
-    s.push('</tr></table>\n');
-    s.push(`<div class="hidden" id="e.${entry.id}"></div>\n`);
-    s.push(`<div class="hidden" id="m.${entry.id}"></div>\n`);
-    s.push(`<div id="n.${entry.id}"></div>\n`);
+    s.push('</tr></table>');
+    s.push(`<div class="hidden" id="e.${entry.id}"></div>`);
+    s.push(`<div class="hidden" id="m.${entry.id}"></div>`);
+    s.push(`<div id="s.${entry.id}"></div>&nbsp;&nbsp;&nbsp;&nbsp;Show the top <span id="t.${entry.id}">25</span> comments<br>`);
+    s.push(`<div id="n.${entry.id}"></div>`);
     newDiv.innerHTML = s.join('');
 
     // Display the emojis that have been attached to this post
     for (emo of entry.emos) {
         add_emo(entry.id, emo[0], emo[1]);
     }
+
+    // Activate the slider
+    let op_slider = new Slider(`s.${entry.id}`, 'slider_bg.png', 321, 22, 'slider_tab.png', 19, 20, 25, on_slider_change);
+    op_slider.id = entry.id;
+    op_slider.set_value(0);
 }
 
 function make_pod(newDiv, entry)
@@ -1030,7 +1043,7 @@ function incoming(response)
         op_revs = ob.opr;
     }
     if (changed_posts) {
-        refresh_comments(); // Determine which comments to show or hide, and add rating information
+        refresh_all_comments(); // Determine which comments to show or hide, and add rating information
     }
 }
 
@@ -1052,7 +1065,7 @@ function on_change_opponent()
 
 function on_change_aion()
 {
-    refresh_comments();
+    refresh_all_comments();
     outgoing({
         act: 'change_aion',
         on: document.getElementById('ai_on').checked,
@@ -1061,10 +1074,13 @@ function on_change_aion()
 
 function on_slider_change(slider, val)
 {
-    tb = document.getElementById('thresh');
+    let op_id = slider.id;
+    if (op_id === undefined)
+        return;
+    tb = document.getElementById(`t.${op_id}`);
     if(tb) {
         tb.innerHTML = '' + val;
-        refresh_comments();
+        refresh_comments(op_id);
     }
     updated_thresh = val;
     setTimeout(function() {
@@ -1133,7 +1149,6 @@ function init()
         let ai_switch = document.getElementById('ai_switch');
         ai_switch.style.display = 'inline-block';
     }
-    myslider.set_value(initial_thresh);
 
     // Pull the content
     rev = 0;
@@ -1156,41 +1171,34 @@ function init()
             <div id='tagline'></div>
         </td>
         <td>
-            <table width="100%">
-                <tr>
-                    <td align='right'><a href="accounts.html"><span id="account_name"></span></a></td>
-                    <td valign='top' rowspan=2><a href="accounts.html"><span id="account_pic"></span></a></td>
-                </tr>
-                <tr>
-                    <td>
-                        <a onclick="showNotifications()" href="javascript:void(0);"><img src="starter_pics/bell.png"><span id="notif_count"></span></a>
-                        &nbsp;&nbsp;&nbsp;
-                        <a href="handbook.html"><img src="starter_pics/book.png"></a>
-                    </td>
-                </tr>
-            </table>
+            <span class="tool">
+                <a onclick="showNotifications()" href="javascript:void(0);"><img src="starter_pics/bell.png"><span id="notif_count"></span></a>
+                <span class="tool_anchor"><span class="tooltip">Show your notifications</span></span>
+            </span>
+            &nbsp;&nbsp;&nbsp;
+            <span class="tool">
+                <a href="handbook.html"><img src="starter_pics/book.png"></a>
+                <span class="tool_anchor"><span class="tooltip">Show the handbook</span></span>
+            </span>
+            &nbsp;&nbsp;&nbsp;
+            <span class="tool">
+                <a href="accounts.html"><span id="account_pic"></span></a>
+                <span class="tool_anchor"><span class="tooltip"><span id="account_name"></span><br>View or edit your account details</span></span>
+            </span>
             <br>
-            <table><tr>
-                <td align="center">
-                    <div id="ai_switch" class="hidden">
-                        A.I.:<br>
-                        <span class="tool">
-                            <input type="radio" id="ai_off" name="isaion" onchange="on_change_aion();" checked>
-                            <span onclick="ai_off()" style="cursor: pointer;">Off</span>
-                            <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>off</b>, we show the top comments according to the overall community ratings.<br><br>(Our A.I. will still learn from your ratings, if you do any, but we won't use the A.I. to decide which posts to show you.)</span></span>
-                        </span>
-                        <span class="tool">
-                            <input type="radio" id="ai_on" name="isaion" onchange="on_change_aion();">
-                            <span onclick="ai_on()" style="cursor: pointer;">On</span>
-                            <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>on</b>, we show the comments that our A.I. predicts you would rate most highly.<br><br>(Don't be scared. He's a nice A.I. who doesn't watch you when you leave our site. And he doesn't watch you while you sleep at night either--that would be creepy.)</span></span>
-                        </span>
-                    </div>
-                </td>
-                <td>
-                    <script language="JavaScript">let myslider = new Slider('slider_bg.png', 321, 22, 'slider_tab.png', 19, 20, 25, on_slider_change);</script>
-                    &nbsp;&nbsp;&nbsp;&nbsp;Show the top <span id="thresh">25</span> comments<br>
-                </td>
-            </tr></table>
+            <div id="ai_switch" class="hidden">
+                A.I.:<br>
+                <span class="tool">
+                    <input type="radio" id="ai_off" name="isaion" onchange="on_change_aion();" checked>
+                    <span onclick="ai_off()" style="cursor: pointer;">Off</span>
+                    <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>off</b>, we show the top comments according to the overall community ratings.<br><br>(Our A.I. will still learn from your ratings, if you do any, but we won't use the A.I. to decide which posts to show you.)</span></span>
+                </span>
+                <span class="tool">
+                    <input type="radio" id="ai_on" name="isaion" onchange="on_change_aion();">
+                    <span onclick="ai_on()" style="cursor: pointer;">On</span>
+                    <span class="tool_anchor"><span class="tooltip">When our A.I. is turned <b>on</b>, we show the comments that our A.I. predicts you would rate most highly.<br><br>(Don't be scared. He's a nice A.I. who doesn't watch you when you leave our site. And he doesn't watch you while you sleep at night either--that would be creepy.)</span></span>
+                </span>
+            </div>
         </td>
     </tr></table>
 
