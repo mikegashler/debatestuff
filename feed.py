@@ -63,36 +63,41 @@ def annotate_updates(updates: List[Dict[str, Any]], account: accounts.Account) -
 
 tag_whitelist = set([
     'a',
-    '/a',
     'b',
-    '/b',
-    'i',
-    '/i',
-    'u',
-    '/u',
-    'img',
-    'table',
-    '/table',
-    'tr',
-    '/tr',
-    'td',
-    '/td',
-    'menu',
-    '/menu',
+    'div',
     'hr',
-    'ul',
-    '/ul',
-    'ol',
-    '/ol',
+    'i',
+    'img',
     'li',
-    '/li',
+    'menu',
+    'ol',
+    'span',
+    'table',
+    'td',
+    'tr',
+    'u',
+    'ul',
     'sub',
-    '/sub',
     'sup',
+    '/a',
+    '/b',
+    '/div',
+    '/i',
+    '/li',
+    '/menu',
+    '/ol',
+    '/span',
+    '/sub',
     '/sup',
+    '/table',
+    '/td',
+    '/tr',
+    '/u',
+    '/ul',
 ])
 
 def restore_whitelisted_tags(text: str) -> str:
+    print(f'Processing {text}')
     pos = 0
     while True:
         open_start = text.find('&lt;', pos)
@@ -212,6 +217,20 @@ def add_updates(updates: List[Dict[str, Any]], incoming_packet: Mapping[str, Any
                     break
 
     return rev, op_list, op_revs
+
+# Loads an incoming image from a temp file,
+# scales it down (if necessary),
+# and saves it to a better location for long-term storage.
+def store_incoming_image(filename_in: str, filename_out: str, max_wid: int, max_hgt: int) -> None:
+    img = Image.open(filename_in)
+    if img.size[0] > max_wid or img.size[1] > max_hgt:
+        if img.size[0] / max_wid > img.size[1] / max_hgt:
+            img = img.resize((max_wid, img.size[1] * max_wid // img.size[0]), Image.ANTIALIAS)
+        else:
+            img = img.resize((img.size[0] * max_hgt // img.size[1], max_hgt), Image.ANTIALIAS)
+    img = img.convert('RGB')
+    img.save(filename_out)
+
 
 # Handles POST requests
 def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Dict[str, Any]:
@@ -376,25 +395,22 @@ def do_ajax(incoming_packet: Mapping[str, Any], session: sessions.Session) -> Di
         elif act == 'change_thresh': # Change the threshold by moving the slider
             account.thresh = incoming_packet['val']
             accounts.account_cache.set_modified(account.id)
-        elif act == 'upload': # Receive an uploaded file
+        elif act == 'background': # Receive an uploaded background
             fn = incoming_packet['file']
-            max_wid = 600
-            max_hgt = 800
-            img = Image.open(f'/tmp/{fn}')
-            if img.size[0] > max_wid or img.size[1] > max_hgt:
-                if img.size[0] / max_wid > img.size[1] / max_hgt:
-                    img = img.resize((max_wid, img.size[1] * max_wid // img.size[0]), Image.ANTIALIAS)
-                else:
-                    img = img.resize((img.size[0] * max_hgt // img.size[1], max_hgt), Image.ANTIALIAS)
-            img = img.convert('RGB')
-            final_filename = f'post_pics/{fn}'
-            img.save(final_filename)
+            store_incoming_image(f'/tmp/{fn}', f'post_pics/{fn}', 500, 700)
+            updates.append({
+                'act': 'background',
+                'file': f'post_pics/{fn}'
+            })
+        elif act == 'upload': # Receive an uploaded image
+            fn = incoming_packet['file']
+            store_incoming_image(f'/tmp/{fn}', f'post_pics/{fn}', 500, 700)
             updates.append({
                 'act': 'upload',
                 'file': f'post_pics/{fn}'
             })
         else:
-            raise RuntimeError('unrecognized action')
+            raise RuntimeError(f'unrecognized action: {act}')
     except Exception as e:
         traceback.print_exc()
         updates.append({

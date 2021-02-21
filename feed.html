@@ -266,10 +266,20 @@ function show_rate_div(id) {
 function add_text_area(s, id, rows, maxlen) {
     s.push('<table><tr>');
     s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
-    s.push(`<td><a onclick="show_upload_image('${id}')" href="javascript:void(0);">image</a>`);
+    s.push('<td>');
+
+    // Background
+    s.push(`<a onclick="show_upload_background('${id}')" href="javascript:void(0);">background</a><br>`);
+    s.push(`<div id="i.${id}" class="hidden">`);
+    s.push(`<input id="j.${id}" name="file" type="file" onchange="submit_upload_background('${id}')">`);
+    s.push('</div>');
+
+    // Image
+    s.push(`<a onclick="show_upload_image('${id}')" href="javascript:void(0);">image</a><br>`);
     s.push(`<div id="b.${id}" class="hidden">`);
     s.push(`<input id="c.${id}" name="file" type="file" onchange="submit_upload_image('${id}')">`);
     s.push('</div>');
+
     s.push('</td>');
     s.push('</tr></table>');
 }
@@ -367,6 +377,12 @@ function refresh_comments(op_id)
     kids = children[op_id];
     if (kids === undefined)
         return;
+    let op_nursery = document.getElementById(`n.${op_id}`);
+    if (thresh === 0) {
+        op_nursery.style.display = 'none';
+        return;
+    }
+    op_nursery.style.display = 'block';
     for (let j = 0; j < kids.length; j++) { // For each pod...
         let pod_id = kids[j];
         let grandkids = children[pod_id];
@@ -496,6 +512,15 @@ function submitReply(id)
     closeReply(id);
 }
 
+function show_upload_background(id)
+{
+    let el = document.getElementById(`i.${id}`);
+    if (el.style.display !== 'inline-block') {
+        el.style.display = 'inline-block';
+    } else {
+        el.style.display = 'none';
+    }
+}
 
 function show_upload_image(id)
 {
@@ -507,17 +532,8 @@ function show_upload_image(id)
     }
 }
 
-function submit_upload_image(id)
+function upload_image(file, act)
 {
-    active_text_area = document.getElementById(`t.${id}`);
-    let bd = document.getElementById(`b.${id}`);
-    let bb = document.getElementById(`c.${id}`);
-    if (!bb) {
-        console.log('Failed to find the browse button');
-        return;
-    }
-    let file = bb.files[0];
-    bd.style.display = 'none';
     let formData = new FormData();
     formData.append('file', file);
     let request = new XMLHttpRequest();
@@ -537,8 +553,39 @@ function submit_upload_image(id)
         }
     };
     request.open('POST', 'feed_ajax.html', true);
-    request.setRequestHeader('Brownie', `sid=${session_id}`)
+    request.setRequestHeader('Brownie', `sid=${session_id}`);
+    console.log(`action=${act}`);
+    request.setRequestHeader('Act', act);
     request.send(formData);
+}
+
+function submit_upload_background(id)
+{
+    active_text_area = document.getElementById(`t.${id}`);
+    let bd = document.getElementById(`i.${id}`);
+    bd.style.display = 'none';
+    let bb = document.getElementById(`j.${id}`);
+    if (!bb) {
+        console.log('Failed to find the browse button');
+        return;
+    }
+    upload_image(bb.files[0], 'background');
+    bb.value = null;
+    let el = document.getElementById('upload_image_div');
+    el.style.display = 'none';
+}
+
+function submit_upload_image(id)
+{
+    active_text_area = document.getElementById(`t.${id}`);
+    let bd = document.getElementById(`b.${id}`);
+    bd.style.display = 'none';
+    let bb = document.getElementById(`c.${id}`);
+    if (!bb) {
+        console.log('Failed to find the browse button');
+        return;
+    }
+    upload_image(bb.files[0], 'upload');
     bb.value = null;
     let el = document.getElementById('upload_image_div');
     el.style.display = 'none';
@@ -689,6 +736,8 @@ function add_emo(id, emo, name)
 // e = emoji choices
 // f = emoji display
 // h = hint about rating
+// i = enclosing div for the browse button for uploading a background
+// j = browse button for uploading a background
 // m = moderation div
 // n = nursery (div for child nodes)
 // r = reply div
@@ -799,7 +848,7 @@ function make_op(newDiv, entry)
     s.push('</tr></table>');
     s.push(`<div class="hidden" id="e.${entry.id}"></div>`);
     s.push(`<div class="hidden" id="m.${entry.id}"></div>`);
-    s.push(`<div id="s.${entry.id}"></div>&nbsp;&nbsp;&nbsp;&nbsp;Show the top <span id="t.${entry.id}">25</span> comments<br>`);
+    s.push(`<table><tr><td><div id="s.${entry.id}"></div></td><td>Show the top <span id="t.${entry.id}">0</span> comments</td></tr></table>`);
     s.push(`<div id="n.${entry.id}"></div>`);
     newDiv.innerHTML = s.join('');
 
@@ -963,13 +1012,13 @@ function set_focus(id)
     //node.scrollIntoView();
 }
 
-function on_receive_uploaded_image(filename)
+function insert_textarea_snip(insert_me)
 {
     if (!active_text_area) {
-        alert(`Received uploaded file ${filename}, but there is no active text area`);
+        console.log(`No active text area for inserting text: ${insert_me}`);
+        alert(`No active text area for inserting text: ${insert_me}`);
         return;
     }
-    let insert_me = `<img src="${filename}">`;
     if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
         active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
             + insert_me
@@ -977,6 +1026,16 @@ function on_receive_uploaded_image(filename)
     } else {
         active_text_area.value += insert_me;
     }
+}
+
+function on_receive_background_image(filename)
+{
+    insert_textarea_snip(`<div style="background-image:url('${filename}')">Your text here</div>`);
+}
+
+function on_receive_uploaded_image(filename)
+{
+    insert_textarea_snip(`<img src="${filename}">`);
 }
 
 // Returns true iff a show/hide pass should be performed
@@ -1014,8 +1073,10 @@ function update_entry(entry)
         return false;
     } else if (entry.act === 'upload') {
         on_receive_uploaded_image(entry.file);
+    } else if (entry.act === 'background') {
+        on_receive_background_image(entry.file);
     } else {
-        let msg = `unrecognized entry action ${entry.act}`;
+        let msg = `unrecognized action ${entry.act}`;
         alert(msg);
         throw msg;
     }

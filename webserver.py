@@ -120,11 +120,12 @@ class SimpleWebServer(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(bytes(response, 'utf8'))
         elif self.headers.get('Content-Type')[:len(upload_file_type)] == upload_file_type:
+            act = self.headers.get('Act') # An action specifying what to do with this image
             t = datetime.now()
             fn = f'{session_id}_{t.year:04}-{t.month:02}-{t.day:02}_{t.hour:02}-{t.minute:02}-{t.second:02}-{t.microsecond:06}.jpeg'
             self.receive_file(f'/tmp/{fn}', 16000000)
             response = simpleWebServerPages[filename]({
-                'act': 'upload',
+                'act': act,
                 'file': fn,
             }, session)
             self.send_response(200)
