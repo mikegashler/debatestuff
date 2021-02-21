@@ -265,7 +265,7 @@ function show_rate_div(id) {
 
 function add_text_area(s, id, rows, maxlen) {
     s.push('<table><tr>');
-    s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, 'u.${id}')"></textarea><br>`);
+    s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, '${id}')"></textarea><br>`);
     s.push('<td>');
 
     // Background
@@ -279,6 +279,10 @@ function add_text_area(s, id, rows, maxlen) {
     s.push(`<div id="b.${id}" class="hidden">`);
     s.push(`<input id="c.${id}" name="file" type="file" onchange="submit_upload_image('${id}')">`);
     s.push('</div>');
+
+    // Bold, color
+    s.push(`<a onclick="insert_snip('${id}', '<b>Your text here</b>')" href="javascript:void(0);">bold</a><br>`);
+    s.push(`<a onclick="insert_snip('${id}', '<font color=red>Your text here</font>')" href="javascript:void(0);">color</a><br>`);
 
     s.push('</td>');
     s.push('</tr></table>');
@@ -294,7 +298,7 @@ function show_reply_div(id) {
             s.push('<table><tr><td valign="top">');
             s.push(`<img class="rounded" src="${account_pic}">`);
             s.push('</td><td>');
-            add_text_area(s, id, 2, 1000);
+            add_text_area(s, id, 4, 1000);
             s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
             s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
             s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
@@ -554,7 +558,6 @@ function upload_image(file, act)
     };
     request.open('POST', 'feed_ajax.html', true);
     request.setRequestHeader('Brownie', `sid=${session_id}`);
-    console.log(`action=${act}`);
     request.setRequestHeader('Act', act);
     request.send(formData);
 }
@@ -571,8 +574,7 @@ function submit_upload_background(id)
     }
     upload_image(bb.files[0], 'background');
     bb.value = null;
-    let el = document.getElementById('upload_image_div');
-    el.style.display = 'none';
+    bd.style.display = 'none';
 }
 
 function submit_upload_image(id)
@@ -587,8 +589,7 @@ function submit_upload_image(id)
     }
     upload_image(bb.files[0], 'upload');
     bb.value = null;
-    let el = document.getElementById('upload_image_div');
-    el.style.display = 'none';
+    bd.style.display = 'none';
 }
 
 function showNotifications()
@@ -888,7 +889,7 @@ function make_pod(newDiv, entry)
         s.push('<table><tr><td valign="top">');
         s.push(`<img class="rounded" src="${account_pic}">`);
         s.push('</td><td>');
-        s.push(`<textarea id="t.${entry.id}" rows="2" cols="50" maxlength="1000" onkeyup="on_textarea_change(this, 'u.${entry.id}')"></textarea><br>`);
+        add_text_area(s, entry.id, 4, 1000);
         s.push(`<button type="button" onclick="submitReply('${entry.id}')">Post</button>`);
         s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${entry.id}"></span>`);
         s.push('</td></tr></table></div>');
@@ -1019,6 +1020,8 @@ function insert_textarea_snip(insert_me)
         alert(`No active text area for inserting text: ${insert_me}`);
         return;
     }
+
+    // Insert the text
     if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
         active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
             + insert_me
@@ -1026,6 +1029,26 @@ function insert_textarea_snip(insert_me)
     } else {
         active_text_area.value += insert_me;
     }
+
+    // Select "Your text here" if it is found
+    let start = active_text_area.value.indexOf('Your text here');
+    if (start >= 0) {
+        let end = start + 14;
+        if(active_text_area.setSelectionRange) {
+            active_text_area.focus();
+            active_text_area.setSelectionRange(start, end);
+        } else if(typeof active_text_area.selectionStart != 'undefined') {
+            active_text_area.selectionStart = start;
+            active_text_area.selectionEnd = end;
+            active_text_area.focus();
+        }
+    }
+}
+
+function insert_snip(id, insert_me)
+{
+    active_text_area = document.getElementById(`t.${id}`);
+    insert_textarea_snip(insert_me);
 }
 
 function on_receive_background_image(filename)
@@ -1155,13 +1178,13 @@ function on_slider_change(slider, val)
     }, 1000);
 }
 
-function on_textarea_change(textarea, counter_id)
+function on_textarea_change(textarea, id)
 {
     active_text_area = textarea;
     // if (comment_count * 2 >= rating_count && textarea.value.length % 10 == 0) {
     //     alert(`Sorry, you have rated ${rating_count} comments and have posted ${comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.`);
     // }
-    let count_span = document.getElementById(counter_id);
+    let count_span = document.getElementById(`u.${id}`);
     chars_remaining = textarea.maxLength - textarea.value.length;
     count_span.innerHTML = chars_remaining < 500 ? chars_remaining : '';
 }
