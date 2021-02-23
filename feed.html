@@ -263,6 +263,33 @@ function show_rate_div(id) {
     }
 }
 
+function show_new_debate() {
+    let el = document.getElementById('new_debate');
+    if (el.style.display === 'inline-block') {
+        el.style.display = 'none';
+    } else {
+        if (el.innerHTML.length == 0) {
+            s = [];
+            s.push('<br><br><h3>Start a new debate:</h3>');
+            s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
+            add_text_area(s, entry.id, 4, 1500);
+            s.push('<br>Who would you like to challenge to debate?<br>');
+            s.push('<select id="choose_opponent" onchange="on_change_opponent()">');
+            s.push('<option value="open">No one--let\'s just have an open discussion</option>');
+            s.push('<option value="first">Whomever first accepts the challenge</option>');
+            s.push('<option value="name">The individual named below</option>');
+            s.push('</select><br>');
+            s.push('<div id="opponent_name_div" class="hidden">');
+            s.push('<input type="text" id="opponent"><br>');
+            s.push('</div><br>');
+            s.push(`<button type="button" onclick="startNewDebate('${entry.id}')">Post</button>`);
+            s.push('<br><br><br><br>');
+            el.innerHTML = s.join('');
+        }
+        el.style.display = 'inline-block';
+    }
+}
+
 function add_text_area(s, id, rows, maxlen) {
     s.push('<table><tr>');
     s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, '${id}')"></textarea><br>`);
@@ -283,6 +310,7 @@ function add_text_area(s, id, rows, maxlen) {
     // Bold, color
     s.push(`<a onclick="insert_snip('${id}', '<b>Your text here</b>')" href="javascript:void(0);">bold</a><br>`);
     s.push(`<a onclick="insert_snip('${id}', '<font color=red>Your text here</font>')" href="javascript:void(0);">color</a><br>`);
+    s.push(`<a onclick="insert_snip('${id}', '<big>Your text here</big>')" href="javascript:void(0);">big</a><br>`);
 
     s.push('</td>');
     s.push('</tr></table>');
@@ -812,20 +840,9 @@ function make_cat(newDiv, entry)
 
     // Add the new OP area
     if (entry.nop) {
-        s.push('<br><br><h3>Start a new debate:</h3>');
-        s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
-        add_text_area(s, entry.id, 4, 1500);
-        s.push('<br>Who would you like to challenge to debate?<br>');
-        s.push('<select id="choose_opponent" onchange="on_change_opponent()">');
-        s.push('<option value="open">No one--let\'s just have an open discussion</option>');
-        s.push('<option value="first">Whomever first accepts the challenge</option>');
-        s.push('<option value="name">The individual named below</option>');
-        s.push('</select><br>');
-        s.push('<div id="opponent_name_div" class="hidden">');
-        s.push('<input type="text" id="opponent"><br>');
-        s.push('</div><br>');
-        s.push(`<button type="button" onclick="startNewDebate('${entry.id}')">Post</button>`);
-        s.push('<br><br><br><br>');
+        s.push('<br><br><big><big>');
+        s.push('<a onclick="show_new_debate()" href="javascript:void(0);">New debate</a><br>');
+        s.push('<div id="new_debate" class="hidden"></div></big></big><br>');
     }
 
     s.push(`<div id="n.${entry.id}"></div>\n`);
@@ -1022,7 +1039,9 @@ function insert_textarea_snip(insert_me)
     }
 
     // Insert the text
+    let selected_text = '';
     if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
+        selected_text = active_text_area.value.substring(active_text_area.selectionStart, active_text_area.selectionEnd);
         active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
             + insert_me
             + active_text_area.value.substring(active_text_area.selectionEnd, active_text_area.value.length);
@@ -1034,6 +1053,15 @@ function insert_textarea_snip(insert_me)
     let start = active_text_area.value.indexOf('Your text here');
     if (start >= 0) {
         let end = start + 14;
+        if (selected_text.length > 0) {
+            // Replace 'Your text here' with the previously selected text
+            active_text_area.value = active_text_area.value.substring(0, start)
+                + selected_text
+                + active_text_area.value.substring(end, active_text_area.value.length);
+            end = start + selected_text.length;
+        }
+
+        // Select the 'Your text here'
         if(active_text_area.setSelectionRange) {
             active_text_area.focus();
             active_text_area.setSelectionRange(start, end);

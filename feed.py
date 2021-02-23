@@ -64,6 +64,7 @@ def annotate_updates(updates: List[Dict[str, Any]], account: accounts.Account) -
 tag_whitelist = set([
     'a',
     'b',
+    'big',
     'div',
     'font',
     'hr',
@@ -82,6 +83,7 @@ tag_whitelist = set([
     'sup',
     '/a',
     '/b',
+    '/big',
     '/div',
     '/font',
     '/i',
