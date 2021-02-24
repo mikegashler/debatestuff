@@ -461,6 +461,7 @@ def do_feed(query: Mapping[str, Any], session: sessions.Session) -> str:
         'let post = "', post, '";\n',
         'let op_list = ', str(op_list), ';\n',
         'let admin = ', 'true' if account.admin else 'false', ';\n',
+        'let account_id = \'', account.id, '\';\n',
         'let account_name = \'', account.name, '\';\n',
         'let account_pic = \'', account.image, '\';\n',
         'let comment_count = ', str(len(account.comments)), ';\n',

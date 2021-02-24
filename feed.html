@@ -271,8 +271,6 @@ function show_new_debate() {
         if (el.innerHTML.length == 0) {
             s = [];
             s.push('<br><br><h3>Start a new debate:</h3>');
-            s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
-            add_text_area(s, entry.id, 4, 1500);
             s.push('<br>Who would you like to challenge to debate?<br>');
             s.push('<select id="choose_opponent" onchange="on_change_opponent()">');
             s.push('<option value="open">No one--let\'s just have an open discussion</option>');
@@ -282,7 +280,8 @@ function show_new_debate() {
             s.push('<div id="opponent_name_div" class="hidden">');
             s.push('<input type="text" id="opponent"><br>');
             s.push('</div><br>');
-            s.push(`<button type="button" onclick="startNewDebate('${entry.id}')">Post</button>`);
+            s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
+            add_text_area(s, entry.id, 4, 1500, true, true);
             s.push('<br><br><br><br>');
             el.innerHTML = s.join('');
         }
@@ -290,7 +289,42 @@ function show_new_debate() {
     }
 }
 
-function add_text_area(s, id, rows, maxlen) {
+function cancel_new_debate()
+{
+    let el = document.getElementById('new_debate');
+    el.style.display = 'none';
+}
+
+function filter_post(text) {
+    text = text.replace(/\n/g, '<br>')
+    text = text.replace(/  /g, '&nbsp; ')
+    return text;
+}
+
+function on_textarea_change(textarea, id)
+{
+    // Update the character count
+    active_text_area = textarea;
+    let count_span = document.getElementById(`u.${id}`);
+    chars_remaining = textarea.maxLength - textarea.value.length;
+    count_span.innerHTML = chars_remaining < 500 ? chars_remaining : '';
+
+    // Update the preview
+    let preview_pane = document.getElementById(`p.${id}`);
+    preview_pane.innerHTML = filter_post(textarea.value);
+}
+
+function add_text_area(s, id, rows, maxlen, have_cancel, new_debate) {
+    // Preview pane
+    s.push('<div class="bubble rp_color" width="80%">');
+    s.push('<table><tr><td valign="top">');
+    s.push(`<img class="rounded" src="${account_pic}">`);
+    s.push('</td><td>');
+    s.push(`<b><a href='accounts.html?id=${account_id}'>${account_name}</a></b><br>`); // name
+    s.push(`<div id='p.${id}'></div>`);
+    s.push('</td></tr></table></div>');
+
+    // The text area
     s.push('<table><tr>');
     s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, '${id}')"></textarea><br>`);
     s.push('<td>');
@@ -314,6 +348,19 @@ function add_text_area(s, id, rows, maxlen) {
 
     s.push('</td>');
     s.push('</tr></table>');
+
+    // Post button, Cancel button, and character counter
+    if (new_debate)
+        s.push(`<button type="button" onclick="startNewDebate('${id}')">Post</button>`);
+    else
+        s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
+    if (have_cancel) {
+        if (new_debate)
+            s.push(`&nbsp;<button type="button" onclick="cancel_new_debate()">Cancel</button>`);
+        else
+            s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
+    }
+    s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
 }
 
 function show_reply_div(id) {
@@ -323,14 +370,7 @@ function show_reply_div(id) {
     } else {
         if (x.innerHTML.length == 0) {
             s = [];
-            s.push('<table><tr><td valign="top">');
-            s.push(`<img class="rounded" src="${account_pic}">`);
-            s.push('</td><td>');
-            add_text_area(s, id, 4, 1000);
-            s.push(`<button type="button" onclick="submitReply('${id}')">Post</button>`);
-            s.push(`&nbsp;<button type="button" onclick="closeReply('${id}')">Cancel</button>`);
-            s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${id}"></span>`);
-            s.push('</td></tr></table><br><br>\n');
+            add_text_area(s, id, 4, 1000, true, false);
             x.innerHTML = s.join('');
         }
         x.style.display = 'inline-block';
@@ -769,6 +809,7 @@ function add_emo(id, emo, name)
 // j = browse button for uploading a background
 // m = moderation div
 // n = nursery (div for child nodes)
+// p = preview div
 // r = reply div
 // s = slider div
 // t = slider text
@@ -855,15 +896,17 @@ function make_op(newDiv, entry)
 {
     newDiv.className = 'op';
     let s = [];
-    s.push('<table><tr>');
+    s.push('<table><tr><td>');
+    s.push('<div class="bubble rp_color"><table><tr>');
     s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}">`);
     s.push('</td><td width=4px></td>');
     s.push(`<td><p><b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>&nbsp;&nbsp;<span id='f.${entry.id}'></span><br>`);
-    s.push(`<big><big>${entry.text}</big></big></p></td>`);
+    s.push(`${entry.text}</p></td>`);
+    s.push('</tr></table></td>');
     s.push('<td valign=top>');
     add_rate_and_respond_links(s, entry, false);
     s.push('</td>');
-    s.push('</tr></table>');
+    s.push('</tr></table></div>');
     s.push(`<div class="hidden" id="e.${entry.id}"></div>`);
     s.push(`<div class="hidden" id="m.${entry.id}"></div>`);
     s.push(`<table><tr><td><div id="s.${entry.id}"></div></td><td>Show the top <span id="t.${entry.id}">0</span> comments</td></tr></table>`);
@@ -903,13 +946,7 @@ function make_pod(newDiv, entry)
     s.push(`<div class="indent" id="n.${entry.id}"></div>\n`);
     if (entry.ro === undefined) {
         s.push('<div class="indent">');
-        s.push('<table><tr><td valign="top">');
-        s.push(`<img class="rounded" src="${account_pic}">`);
-        s.push('</td><td>');
-        add_text_area(s, entry.id, 4, 1000);
-        s.push(`<button type="button" onclick="submitReply('${entry.id}')">Post</button>`);
-        s.push(`&nbsp;&nbsp;&nbsp;<span id="u.${entry.id}"></span>`);
-        s.push('</td></tr></table></div>');
+        add_text_area(s, entry.id, 4, 1000, false, false);
         s.push('<br><br>\n');
     } else {
         if (entry.ro == 1) {
@@ -940,8 +977,8 @@ function make_rp(newDiv, entry)
         // Peanut gallery comment
         s.push(`<td valign=top align=right><img class="rounded" src="${entry.image}"></td><td width=4px></td>`);
         s.push('<td valign=top><p>');
-        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>&nbsp;&nbsp;<span id='f.${entry.id}'></span>`);
-        s.push('<br>');
+        s.push(`<b><a href='accounts.html?id=${entry.aid}'>${entry.name}</a></b>`); // name
+        s.push(`&nbsp;&nbsp;<span id='f.${entry.id}'></span><br>`); // emojis bar
         s.push(entry.text);
         s.push('</p></td>');
     } else {
@@ -1204,17 +1241,6 @@ function on_slider_change(slider, val)
             });
         }
     }, 1000);
-}
-
-function on_textarea_change(textarea, id)
-{
-    active_text_area = textarea;
-    // if (comment_count * 2 >= rating_count && textarea.value.length % 10 == 0) {
-    //     alert(`Sorry, you have rated ${rating_count} comments and have posted ${comment_count}.\nA 2:1 ratio is required, so you must rate more comments before you may post.`);
-    // }
-    let count_span = document.getElementById(`u.${id}`);
-    chars_remaining = textarea.maxLength - textarea.value.length;
-    count_span.innerHTML = chars_remaining < 500 ? chars_remaining : '';
 }
 
 function crop_params(url)
