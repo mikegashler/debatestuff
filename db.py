@@ -56,9 +56,11 @@ class FlatFile():
             file.write(blob)
 
     # Load all the data from a flat file
-    def load(self) -> None:
+    def load(self, flush_all: bool=False) -> None:
         import rec
-        if not os.path.exists('state.json'):
+        if flush_all:
+            print('Flushing all existing data')
+        elif not os.path.exists('state.json'):
             print('No state.json file was found. Starting with no data.')
         else:
             # Parse the file
@@ -235,7 +237,19 @@ class Mongo():
         flush_caches()
         self.put_engine(rec.engine.marshal())
 
-    def load(self) -> None:
+    def load(self, flush_all: bool=False) -> None:
+        if flush_all:
+            print('Flushing all existing data')
+            self.sessions.drop()
+            self.accounts.drop()
+            self.notif_in.drop()
+            self.notif_out.drop()
+            self.posts.drop()
+            self.history.drop()
+            self.user_profiles.drop()
+            self.item_profiles.drop()
+            self.ratings.drop()
+            self.engine.drop()
         import rec
         try:
             rec.engine.unmarshal(self.get_engine())

@@ -152,7 +152,8 @@ let aion_indexes = {};
 let aioff_scores = {};
 let aion_scores = {};
 let updated_thresh = -1;
-
+let preview_in_progress = false;
+let preview_delayed_in_progress = false;
 
 function httpPost(url, payload, callback)
 {
@@ -281,7 +282,7 @@ function show_new_debate() {
             s.push('<input type="text" id="opponent"><br>');
             s.push('</div><br>');
             s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
-            add_text_area(s, entry.id, 4, 1500, true, true);
+            add_text_area(s, entry.id, true, true);
             s.push('<br><br><br><br>');
             el.innerHTML = s.join('');
         }
@@ -301,22 +302,113 @@ function filter_post(text) {
     return text;
 }
 
+function update_preview(id)
+{
+    let textarea = active_text_area;
+    if (preview_in_progress) {
+        if (!preview_delayed_in_progress) {
+            // Update after a delay
+            preview_delayed_in_progress = true;
+            setTimeout(function() {
+                let preview_pane = document.getElementById(`p.${id}`);
+                preview_delayed_in_progress = false;
+                let the_text = textarea.value;
+                preview_pane.innerHTML = filter_post(the_text);
+            }, 1500);
+        }
+    } else {
+        // Update immediately
+        preview_in_progress = true;
+        let preview_pane = document.getElementById(`p.${id}`);
+        preview_pane.innerHTML = filter_post(textarea.value);
+        preview_in_progress = false;
+    }
+}
+
 function on_textarea_change(textarea, id)
 {
-    // Update the character count
     active_text_area = textarea;
+
+    // Update the character count
     let count_span = document.getElementById(`u.${id}`);
     chars_remaining = textarea.maxLength - textarea.value.length;
     count_span.innerHTML = chars_remaining < 500 ? chars_remaining : '';
 
     // Update the preview
-    let preview_pane = document.getElementById(`p.${id}`);
-    preview_pane.innerHTML = filter_post(textarea.value);
+    update_preview(id);
 }
 
-function add_text_area(s, id, rows, maxlen, have_cancel, new_debate) {
+function insert_textarea_snip(insert_me)
+{
+    if (!active_text_area) {
+        console.log(`No active text area for inserting text: ${insert_me}`);
+        alert(`No active text area for inserting text: ${insert_me}`);
+        return;
+    }
+
+    // Insert the text
+    let selected_text = '';
+    if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
+        selected_text = active_text_area.value.substring(active_text_area.selectionStart, active_text_area.selectionEnd);
+        active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
+            + insert_me
+            + active_text_area.value.substring(active_text_area.selectionEnd, active_text_area.value.length);
+    } else {
+        active_text_area.value += insert_me;
+    }
+
+    // Select "Your text here" if it is found
+    let start = active_text_area.value.indexOf('Your text here');
+    if (start >= 0) {
+        let end = start + 14;
+        if (selected_text.length > 0) {
+            // Replace 'Your text here' with the previously selected text
+            active_text_area.value = active_text_area.value.substring(0, start)
+                + selected_text
+                + active_text_area.value.substring(end, active_text_area.value.length);
+            end = start + selected_text.length;
+        }
+
+        // Select the 'Your text here'
+        if(active_text_area.setSelectionRange) {
+            active_text_area.focus();
+            active_text_area.setSelectionRange(start, end);
+        } else if(typeof active_text_area.selectionStart != 'undefined') {
+            active_text_area.selectionStart = start;
+            active_text_area.selectionEnd = end;
+            active_text_area.focus();
+        }
+    }
+}
+
+function insert_snip(id, insert_me)
+{
+    active_text_area = document.getElementById(`t.${id}`);
+    insert_textarea_snip(insert_me);
+    update_preview(id);
+}
+
+function on_select_preview(id) {
+    var selected_text = '' + window.getSelection();
+    if (selected_text.length > 0) {
+        let textarea = document.getElementById(`t.${id}`);
+        index = textarea.value.indexOf(selected_text);
+        if (index >= 0) {
+            textarea.focus()
+            textarea.selectionStart = index;
+            textarea.selectionEnd = index + selected_text.length;
+        } else {
+            alert('This is just a preview. It has not yet been posted.');
+        }
+    } else {
+        alert('This is just a preview. It has not yet been posted.');
+    }
+}
+
+function add_text_area(s, id, have_cancel, new_debate) {
     // Preview pane
-    s.push('<div class="bubble rp_color" width="80%">');
+    let maxlen = (new_debate ? 1500 : 1000);
+    s.push(`<div class="bubble rp_color" width="80%" onclick="on_select_preview('${id}')">`);
     s.push('<table><tr><td valign="top">');
     s.push(`<img class="rounded" src="${account_pic}">`);
     s.push('</td><td>');
@@ -326,7 +418,7 @@ function add_text_area(s, id, rows, maxlen, have_cancel, new_debate) {
 
     // The text area
     s.push('<table><tr>');
-    s.push(`<td><textarea id="t.${id}" rows="${rows}" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, '${id}')"></textarea><br>`);
+    s.push(`<td><textarea id="t.${id}" rows="5" cols="60" maxlength="${maxlen}" onkeyup="on_textarea_change(this, '${id}')"></textarea><br>`);
     s.push('<td>');
 
     // Background
@@ -370,7 +462,7 @@ function show_reply_div(id) {
     } else {
         if (x.innerHTML.length == 0) {
             s = [];
-            add_text_area(s, id, 4, 1000, true, false);
+            add_text_area(s, id, true, false);
             x.innerHTML = s.join('');
         }
         x.style.display = 'inline-block';
@@ -946,7 +1038,7 @@ function make_pod(newDiv, entry)
     s.push(`<div class="indent" id="n.${entry.id}"></div>\n`);
     if (entry.ro === undefined) {
         s.push('<div class="indent">');
-        add_text_area(s, entry.id, 4, 1000, false, false);
+        add_text_area(s, entry.id, false, false);
         s.push('<br><br>\n');
     } else {
         if (entry.ro == 1) {
@@ -1065,55 +1157,6 @@ function set_focus(id)
     node.style.backgroundColor = '#ffff00';
     setTimeout(function() { node.style.backgroundColor = ''; }, 400);
     //node.scrollIntoView();
-}
-
-function insert_textarea_snip(insert_me)
-{
-    if (!active_text_area) {
-        console.log(`No active text area for inserting text: ${insert_me}`);
-        alert(`No active text area for inserting text: ${insert_me}`);
-        return;
-    }
-
-    // Insert the text
-    let selected_text = '';
-    if (active_text_area.selectionStart || active_text_area.selectionStart == '0') {
-        selected_text = active_text_area.value.substring(active_text_area.selectionStart, active_text_area.selectionEnd);
-        active_text_area.value = active_text_area.value.substring(0, active_text_area.selectionStart)
-            + insert_me
-            + active_text_area.value.substring(active_text_area.selectionEnd, active_text_area.value.length);
-    } else {
-        active_text_area.value += insert_me;
-    }
-
-    // Select "Your text here" if it is found
-    let start = active_text_area.value.indexOf('Your text here');
-    if (start >= 0) {
-        let end = start + 14;
-        if (selected_text.length > 0) {
-            // Replace 'Your text here' with the previously selected text
-            active_text_area.value = active_text_area.value.substring(0, start)
-                + selected_text
-                + active_text_area.value.substring(end, active_text_area.value.length);
-            end = start + selected_text.length;
-        }
-
-        // Select the 'Your text here'
-        if(active_text_area.setSelectionRange) {
-            active_text_area.focus();
-            active_text_area.setSelectionRange(start, end);
-        } else if(typeof active_text_area.selectionStart != 'undefined') {
-            active_text_area.selectionStart = start;
-            active_text_area.selectionEnd = end;
-            active_text_area.focus();
-        }
-    }
-}
-
-function insert_snip(id, insert_me)
-{
-    active_text_area = document.getElementById(`t.${id}`);
-    insert_textarea_snip(insert_me);
 }
 
 function on_receive_background_image(filename)
