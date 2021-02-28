@@ -223,6 +223,8 @@ class Mongo():
         self.db = Mongo.client['debatestuff']
         self.sessions = self.db['sessions']
         self.accounts = self.db['accounts']
+        if len(self.accounts.index_information()) == 0:
+            self.accounts.create_index([('name', 1)])
         self.notif_in = self.db['notif_in']
         self.notif_out = self.db['notif_out']
         self.posts = self.db['posts']
@@ -230,6 +232,8 @@ class Mongo():
         self.user_profiles = self.db['user_profiles']
         self.item_profiles = self.db['item_profiles']
         self.ratings = self.db['ratings']
+        if len(self.ratings.index_information()) == 0:
+            self.ratings.create_index([('user', 1), ('item', 1)])
         self.engine = self.db['engine']
 
     def save(self) -> None:
@@ -255,8 +259,6 @@ class Mongo():
             rec.engine.unmarshal(self.get_engine())
         except KeyError:
             print('The database is empty. Starting with no data.')
-            self.accounts.create_index([('name', 1)])
-            self.ratings.create_index([('user', 1), ('item', 1)])
 
     # Consumes a marshaled session object (including its own '_id' field)
     def put_session(self, id: str, doc: Mapping[str, Any]) -> None:
