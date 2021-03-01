@@ -281,7 +281,7 @@ function show_rate_div(id) {
     }
 }
 
-function show_new_debate() {
+function show_new_debate(id) {
     let el = document.getElementById('new_debate');
     if (el.style.display === 'inline-block') {
         el.style.display = 'none';
@@ -299,7 +299,7 @@ function show_new_debate() {
             s.push('<input type="text" id="opponent"><br>');
             s.push('</div><br>');
             s.push('(The best debate topics make <u>one</u> claim and provide <u>one</u> supporting reason.)<br>');
-            add_text_area(s, entry.id, true, true);
+            add_text_area(s, id, true, true);
             s.push('<br><br><br><br>');
             el.innerHTML = s.join('');
         }
@@ -359,7 +359,6 @@ function insert_textarea_snip(insert_me)
 {
     if (!active_text_area) {
         console.log(`No active text area for inserting text: ${insert_me}`);
-        alert(`No active text area for inserting text: ${insert_me}`);
         return;
     }
 
@@ -396,13 +395,14 @@ function insert_textarea_snip(insert_me)
             active_text_area.focus();
         }
     }
+    let id = active_text_area.id.substr(2);
+    update_preview(id);
 }
 
 function insert_snip(id, insert_me)
 {
     active_text_area = document.getElementById(`t.${id}`);
     insert_textarea_snip(insert_me);
-    update_preview(id);
 }
 
 function on_select_preview(id) {
@@ -689,7 +689,7 @@ function submitReply(id)
 
 function on_choose_background(id, index, color)
 {
-    on_choose_background_image(id, `backgrounds/bg${index}.jpg`, color);
+    on_choose_background_image(`backgrounds/bg${index}.jpg`, color);
     let enclosing_div = document.getElementById(`i.${id}`);
     enclosing_div.style.display = 'none';
 }
@@ -710,18 +710,18 @@ function show_background_options(id)
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '05', 'yellow')"><img src="backgrounds/bg05.jpg" width="100px" height="100px"></a></td>`);
         s.push('</tr><tr>');
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '06', 'red')"><img src="backgrounds/bg06.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '07', 'green')"><img src="backgrounds/bg07.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '07', '#80ffd0')"><img src="backgrounds/bg07.jpg" width="100px" height="100px"></a></td>`);
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '08', 'white')"><img src="backgrounds/bg08.jpg" width="100px" height="100px"></a></td>`);
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '09', 'black')"><img src="backgrounds/bg09.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '10', 'black')"><img src="backgrounds/bg10.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '11', 'black')"><img src="backgrounds/bg11.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '10', 'navy')"><img src="backgrounds/bg10.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '11', '#504030')"><img src="backgrounds/bg11.jpg" width="100px" height="100px"></a></td>`);
         s.push('</tr><tr>');
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '12', 'white')"><img src="backgrounds/bg12.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '13', 'white')"><img src="backgrounds/bg13.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '14', 'white')"><img src="backgrounds/bg14.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '15', 'white')"><img src="backgrounds/bg15.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '13', 'gold')"><img src="backgrounds/bg13.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '14', 'salmon')"><img src="backgrounds/bg14.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '15', 'turquoise')"><img src="backgrounds/bg15.jpg" width="100px" height="100px"></a></td>`);
         s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '16', 'black')"><img src="backgrounds/bg16.jpg" width="100px" height="100px"></a></td>`);
-        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '17', 'blue')"><img src="backgrounds/bg17.jpg" width="100px" height="100px"></a></td>`);
+        s.push(`<td><a href="#javascript:void(0)" onclick="on_choose_background('${id}', '17', 'navy')"><img src="backgrounds/bg17.jpg" width="100px" height="100px"></a></td>`);
         s.push('</tr></table>');
         s.push('<h3>or upload one:</h3>');
         s.push(`<input id="j.${id}" name="file" type="file" onchange="submit_upload_background('${id}')">`);
@@ -1003,7 +1003,7 @@ function make_cat(newDiv, entry)
     // Add the new OP area
     if (entry.nop) {
         s.push('<br><br><big><big>');
-        s.push('<a onclick="show_new_debate()" href="javascript:void(0);">New debate</a><br>');
+        s.push(`<a onclick="show_new_debate('${entry.id}')" href="javascript:void(0);"><img src="starter_pics/debate.png"></a><br>`);
         s.push('<div id="new_debate" class="hidden"></div></big></big><br>');
     }
 
@@ -1188,15 +1188,14 @@ function set_focus(id)
     //node.scrollIntoView();
 }
 
-function on_choose_background_image(id, filename, color)
+function on_choose_background_image(filename, color)
 {
-    insert_textarea_snip(`<div style="background-image:url('${filename}')"><font color=${color} size=5>Your text here</font></div>`);
-    update_preview(id);
+    insert_textarea_snip(`<div style="background-image:url('${filename}')"><font color=${color} size=5><b>Your text here</b></font></div>`);
 }
 
 function on_receive_background_image(filename)
 {
-    insert_textarea_snip(`<div style="background-image:url('${filename}')"><font color=green size=4>Your text here</font></div>`);
+    insert_textarea_snip(`<div style="background-image:url('${filename}')"><font color=green size=4><b>Your text here</b></font></div>`);
 }
 
 function on_receive_uploaded_image(filename)
@@ -1256,9 +1255,6 @@ function request_updates()
 function incoming(response)
 {
     let ob = JSON.parse(response);
-    if (ob.updates === undefined) {
-        alert(`No updates in ${JSON.stringify(ob)}`);
-    }
     let changed_posts = false;
     for(entry of ob.updates) {
         if(update_entry(entry)) // Receive new updates
